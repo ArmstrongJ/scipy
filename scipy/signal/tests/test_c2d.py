@@ -36,6 +36,13 @@ B_DISC_BL_3 = 0.6*numpy.ones((2,1))
 C_DISC_BL_3 = numpy.asarray([[0.3,0.4],[0.4,0.4],[0.4,0.1]])
 D_DISC_BL_3 = numpy.asarray([[0.175,],[0.2,],[-0.205,]])
 
+NUM_CONT = numpy.asarray([0.25,0.25,0.5])
+DEN_CONT = numpy.asarray([0.75,0.75,1.0])
+
+# Uses dt=0.5 
+NUM_DISC = numpy.asarray([[1.0/3.0,-0.427419169438754,0.221654141101125],])
+DEN_DISC = numpy.asarray([1.0,-1.351394049721225,0.606530659712634])
+
 class TestC2D(numpy.testing.TestCase):
 
     def test_zoh(self):
@@ -68,6 +75,12 @@ class TestC2D(numpy.testing.TestCase):
         numpy.testing.assert_array_almost_equal(B_DISC_BL_3,bd)
         numpy.testing.assert_array_almost_equal(C_DISC_BL_3,cd)
         numpy.testing.assert_array_almost_equal(D_DISC_BL_3,dd)
+        
+    def test_transferfunction(self):
+        num,den = c2d(NUM_CONT,DEN_CONT,DT_DISC,method='zoh')
+        
+        numpy.testing.assert_array_almost_equal(NUM_DISC,num)
+        numpy.testing.assert_array_almost_equal(DEN_DISC,den)
         
     def test_exception(self):
         pass

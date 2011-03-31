@@ -11,12 +11,14 @@ import scipy.linalg
 from math import sqrt
 import math
 
+from ltisys import tf2ss, ss2tf
+
 def _mrdivide(b,a):
     """Convenience function for matrix divides"""
     s = numpy.linalg.solve(a.transpose(),b.transpose())
     return s.transpose()
 
-def c2d(a,b,c,d,dt,method='zoh'):
+def c2d(*args,**kwargs):
     """Transforms a continuous state-space system to a discrete state-space
     system.  The function defaults to a bilinear transform.
     
@@ -42,6 +44,24 @@ def c2d(a,b,c,d,dt,method='zoh'):
     to perform the transformation.  Alternatively, Tustin's 
     bilinear approximation can be used.
     """
+    
+    
+    
+    # 3 args = transfer function
+    if len(args) == 3:
+        a,b,c,d = tf2ss(args[0],args[1])
+        dt = args[2]
+    # 5 args = state-space system
+    elif len(args) == 5:
+        a,b,c,d,dt = args
+    else:
+        raise ValueError("Function accepts 3 (tf) or 5 (ss) arguments")
+    
+    try:
+        method = kwargs['method']
+    except KeyError:
+        # Default method is zero-order hold
+        method='zoh'
     
     if method=='bilinear' or method=='tustin':
     
@@ -76,5 +96,8 @@ def c2d(a,b,c,d,dt,method='zoh'):
         
         raise ValueError("Unknown transformation method.")
     
-    return ad,bd,cd,dd
+    if len(args) == 3:
+        return ss2tf(ad,bd,cd,dd)
+    else:
+        return ad,bd,cd,dd
     
