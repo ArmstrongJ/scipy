@@ -1,8 +1,6 @@
 import numpy
 import numpy.testing 
 
-import pickle
-
 from scipy.signal import c2d
 
 # Author: Jeffrey Armstrong <jeff@approximatrix.com>
