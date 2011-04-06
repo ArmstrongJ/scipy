@@ -93,4 +93,125 @@ def dlsim(system, u, t=None, x0=None):
         return tout,yout
     elif len(system) == 5:
         return tout,yout,xout
+
+def dimpulse(system, x0=None, t=None, n=None):
+    """Impulse response of discrete-time system.
+
+    Parameters
+    ----------
+    system : tuple
+        If specified as a tuple, the system is described as
+        ``(num, den)``, ``(zero, pole, gain)``, or ``(A, B, C, D)``.
+    x0 : array_like, optional
+        Initial state-vector.  Defaults to zero.
+    T : array_like, optional
+        Time points.  Computed if not given.
+    N : int, optional
+        The number of time points to compute (if `t` is not given).
+
+    Returns
+    -------
+    t : ndarray
+        A 1-D array of time points.
+    yout : tuple of array_like
+        Step response of system.  Each element of the tuple represents
+        the output of the system based on an impulse in each input.
+
+    """
     
+    # Determine the system type and set number of inputs and time steps
+    if len(system) == 3:
+        n_inputs = 1
+        dt = system[2]
+    elif len(system) == 5:
+        n_inputs = system[1].shape[1]
+        dt = system[4]
+    
+    # Default to 100 samples if unspecified
+    if n is None:
+        n = 100
+        
+    # If time is not specified, use the number of samples
+    # and system dt
+    if t is None:
+        t = numpy.arange(0,n*dt,dt)
+        
+    # For each input, implement a step change
+    yout = None
+    for i in range(0,n_inputs):
+        
+        u = numpy.zeros((t.shape[0],n_inputs))
+        u[1,i] = 1.0
+
+        one_output = dlsim(system, u, t=t, x0=x0)
+        
+        if yout is None:
+            yout = (one_output[1],)
+        else:
+            yout = yout+(one_output[1],)
+            
+        tout = one_output[0]
+        
+    return tout, yout
+    
+def dstep(system, x0=None, t=None, n=None):
+    """Step response of discrete-time system.
+
+    Parameters
+    ----------
+    system : a tuple describing the system.
+        The following gives the number of elements in the tuple and
+        the interpretation.
+            3 (num, den, dt)
+            5 (A, B, C, D, dt)
+    x0 : array_like, optional
+        Initial state-vector (default is zero).
+    t : array_like, optional
+        Time points (computed if not given).
+    n : int
+        Number of time points to compute if `t` is not given.
+
+    Returns
+    -------
+    t : 1D ndarray
+        Output time points.
+    yout : tuple of array_like
+        Step response of system.  Each element of the tuple represents
+        the output of the system based on a step response to each input.
+
+    """
+    
+    # Determine the system type and set number of inputs and time steps
+    if len(system) == 3:
+        n_inputs = 1
+        dt = system[2]
+    elif len(system) == 5:
+        n_inputs = system[1].shape[1]
+        dt = system[4]
+    
+    # Default to 100 samples if unspecified
+    if n is None:
+        n = 100
+        
+    # If time is not specified, use the number of samples
+    # and system dt
+    if t is None:
+        t = numpy.arange(0,n*dt,dt)
+        
+    # For each input, implement a step change
+    yout = None
+    for i in range(0,n_inputs):
+        
+        u = numpy.zeros((t.shape[0],n_inputs))
+        u[:,i] = numpy.ones((t.shape[0],))
+
+        one_output = dlsim(system, u, t=t, x0=x0)
+        
+        if yout is None:
+            yout = (one_output[1],)
+        else:
+            yout = yout+(one_output[1],)
+            
+        tout = one_output[0]
+        
+    return tout, yout
