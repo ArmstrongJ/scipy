@@ -141,7 +141,7 @@ def dimpulse(system, x0=None, t=None, n=None):
     for i in range(0,n_inputs):
         
         u = numpy.zeros((t.shape[0],n_inputs))
-        u[1,i] = 1.0
+        u[0,i] = 1.0
 
         one_output = dlsim(system, u, t=t, x0=x0)
         

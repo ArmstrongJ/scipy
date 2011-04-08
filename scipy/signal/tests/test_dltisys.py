@@ -4,7 +4,7 @@
 
 import numpy
 import numpy.testing 
-from scipy.signal import dlsim, dstep
+from scipy.signal import dlsim, dstep, dimpulse
 
 DLSIM_A = numpy.asarray([[0.9,0.1],[-0.2,0.9]])
 DLSIM_B = numpy.asarray([[0.4,0.1,-0.1],[0.0,0.05,0.0]])
@@ -25,7 +25,9 @@ DLSIM_STEPOUT = (numpy.asarray([0.0,0.04,0.052,0.0404,0.00956,-0.036324,-0.09331
                  numpy.asarray([-0.1,-0.075,-0.058,-0.04815,-0.04453,-0.0461895,-0.0521812,-0.061588875,-0.073549579,-0.08727047595]),
                  numpy.asarray([0.0,-0.01,-0.013,-0.0101,-0.00239,0.009081,0.0233295,0.03945587,0.056657081,0.0742343737]) )
                  
-                 
+DLSIM_IMPULSEOUT = (numpy.asarray([0.0,0.04,0.012,-0.0116,-0.03084,-0.045884,-0.056994,-0.06450548,-0.068804844,-0.0703091708]),
+                    numpy.asarray([-0.1,0.025,0.017,0.00985,0.00362,-0.0016595,-0.0059917,-0.009407675,-0.011960704,-0.01372089695]),
+                    numpy.asarray([0.0,-0.01,-0.003,0.0029,0.00771,0.011471,0.0142485,0.01612637,0.017201211,0.0175772927]))
 
 class TestDLTI(numpy.testing.TestCase):
     
@@ -57,10 +59,19 @@ class TestDLTI(numpy.testing.TestCase):
         tout,yout = dstep((DLSIM_A,DLSIM_B,DLSIM_C,DLSIM_D,DLSIM_DT),n=10)
         
         numpy.testing.assert_equal(len(yout),3)
+        
+        for i in range(0,len(yout)):
+            numpy.testing.assert_equal(yout[i].shape[0],10)
+            numpy.testing.assert_array_almost_equal(yout[i].flatten(),DLSIM_STEPOUT[i])
+            
+    def test_dimpulse(self):
+        tout,yout = dimpulse((DLSIM_A,DLSIM_B,DLSIM_C,DLSIM_D,DLSIM_DT),n=10)
+        
+        numpy.testing.assert_equal(len(yout),3)
         numpy.testing.assert_equal(yout[0].shape[0],10)
         numpy.testing.assert_equal(yout[1].shape[0],10)
         
         for i in range(0,len(yout)):
-            numpy.testing.assert_array_almost_equal(yout[i].flatten(),DLSIM_STEPOUT[i])
+            numpy.testing.assert_equal(yout[i].shape[0],10)
+            numpy.testing.assert_array_almost_equal(yout[i].flatten(),DLSIM_IMPULSEOUT[i])
             
-        
