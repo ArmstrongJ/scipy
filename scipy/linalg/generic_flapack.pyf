@@ -1010,7 +1010,7 @@ interface
      <type_in> dimension(m,n),intent(in,out,copy,out=x) :: c
      integer depend(c),intent(hide):: ldc = shape(c,0)
      
-     <type_in> dimension(1), intent(in) :: scale
+     <type_in> intent(in) :: scale
      
      integer intent(out) :: info
      

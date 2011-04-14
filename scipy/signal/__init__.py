@@ -9,9 +9,11 @@ from waveforms import *
 from bsplines import *
 from c2d import *
 from dltisys import *
+#from dlyap import dlyap
 from filter_design import *
 from fir_filter_design import *
 from ltisys import *
+from lyap import lyap, sylvester
 from windows import *
 from signaltools import *
 from spectral import *
