@@ -4,6 +4,7 @@
 #
 # Based on the pydare package by the same author
 # http://code.google.com/p/pydare/
+# and appropriately relicensed.  Contains no GPL code.
 #
 
 import numpy
@@ -11,6 +12,8 @@ import numpy.linalg
 import scipy.linalg
 import warnings
 import math
+
+from scipy.signal.lyap import sylvester_bartels_stewart
 
 try:
     import slycot
@@ -32,6 +35,24 @@ def dlyap_iterative(a,q,eps=LYAPUNOV_EPSILON,iter_limit=ITER_LIMIT):
      
     Davinson and Man, "The Numerical Solution of A'Q+QA=-C." 
     IEEE Transactions on Automatic Control, Volume 13, Issue 4, August, 1968.  p. 448.
+    
+    Parameters
+    -----------
+    a,q : ndarray
+        Arrays representing matrices of the discrete Lyapunov equation
+    
+    eps : float
+        Value to use for convergence conditions.  Defaults to 
+        scipy.signal.dlyap.LYAPUNOV_EPSILON
+    
+    iteration_limit : integer
+        Specifies the maximum number of iterations to use when employing the
+        iterative solver.  Defaults to scipy.signal.dlyap.ITER_LIMIT
+    
+    Returns
+    -------
+    x : ndarray
+        The solution to the discrete Lyapunov equation
     """
     error = 1E+6
         
@@ -77,6 +98,16 @@ def dlyap_slycot(a,q):
     More on SLICOT: http://www.slicot.org/
     
     Python Interface (Slycot): https://github.com/avventi/Slycot
+    
+    Parameters
+    -----------
+    a,q : ndarray
+        Arrays representing matrices of the discrete Lyapunov equation
+        
+    Returns
+    -------
+    x : ndarray
+        The solution to the discrete Lyapunov equation
     """
 
     x = None
@@ -92,13 +123,60 @@ def dlyap_slycot(a,q):
     
     return x
     
+def dlyap_via_sylvester(a,q):
+    """Computes the solution to the discrete Lyapunov equation (AXA' + X = Q) by
+    transforming the equation into a form that can utilize a Sylvester equation
+    solver.  Specifically, the equation is converted to AX + X(A')^-1 = Q(A')^-1
+    for solving.  The A matrix must be invertible for this method to work.
+    
+    Parameters
+    -----------
+    a,q : ndarray
+        Arrays representing matrices of the discrete Lyapunov equation
+        
+    Returns
+    -------
+    x : ndarray
+        The solution to the discrete Lyapunov equation
+    """
+
+    # Compute the inverse of the transpose of a
+    a_t_i = numpy.linalg.inv(a.transpose())
+    
+    # Create a new solution
+    f = q*a_t_i
+
+    # Using the inverse of a, solve the generalized Sylvester
+    # equation to retrieve a solution to the discrete
+    # Lyapunov equation
+    return sylvester_bartels_stewart(a,-1.0*a_t_i,f)
+
 def dlyap(a,q,iterative=False,iteration_limit=ITER_LIMIT):
     """Solves the discrete Lyapunov equation (X = A X A' + Q) given the values
     of A and Q.  This function provides a generalized interface to three
     available solvers.  If the iterative flag is not set, the routine will fall
     back to a direct solver.  If the Python interface to SLICOT is installed, 
     the routine will preferentially call the SLICOT solver rather than the pure
-    Python implementation."""
+    Python implementation.
+    
+    Parameters
+    -----------
+    a,q : ndarray
+        Arrays representing matrices of the discrete Lyapunov equation
+        
+    iterative : boolean
+        True to use an iterative solver, False to solve directly.  Defaults to
+        False
+    
+    iteration_limit : integer
+        Specifies the maximum number of iterations to use when employing the
+        iterative solver.  Defaults to scipy.signal.dlyap.ITER_LIMIT
+    
+    Returns
+    -------
+    x : ndarray
+        The solution to the discrete Lyapunov equation
+    """
     
     if iterative:
         return dlyap_iterative(a,q,iter_limit=iteration_limit)
@@ -106,4 +184,4 @@ def dlyap(a,q,iterative=False,iteration_limit=ITER_LIMIT):
         try:
             return dlyap_slycot(a,q)
         except RuntimeError:
-            return dlyap_schur(a,q)
+            return dlyap_via_sylvester(a,q)
