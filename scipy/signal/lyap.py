@@ -44,8 +44,11 @@ def sylvester_bartels_stewart(a,b,q):
     return -u*y*v.transpose()
 
 def lyap_bartels_stewart(a,q):
-    
-    return sylvester_bartels_stewart(a,a.getH(),q)
+    try:
+        at = a.getH()
+    except AttributeError:
+        at = numpy.asmatrix(a).getH()
+    return sylvester_bartels_stewart(a,at,q)
 
 def lyap_slycot(a,q): 
     """Solves the continous Lyapunov using the SLICOT library's implementation
