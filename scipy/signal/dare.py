@@ -99,7 +99,7 @@ class DareSolver:
         z22 = fit
         z = numpy.vstack((numpy.hstack((z11,z12)),numpy.hstack((z21,z22))))
         
-        [s,u] = scipy.linalg.schur(numpy.linalg.inv(z))
+        [s,u] = scipy.linalg.schur(numpy.linalg.inv(z),sort='lhp')
 
         (m,n) = u.shape
         
@@ -295,6 +295,7 @@ def dare(a,b,q,r,iterative=False):
     See Also
     --------
     scipy.signal.DareSolver
+    scipy.signal.care
     
     """
     
