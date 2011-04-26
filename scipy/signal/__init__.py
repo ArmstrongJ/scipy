@@ -8,6 +8,7 @@ import sigtools
 from waveforms import *
 from bsplines import *
 from c2d import *
+from care import *
 from dare import *
 from dltisys import *
 from dlyap import dlyap
