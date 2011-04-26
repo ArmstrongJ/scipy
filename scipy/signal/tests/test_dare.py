@@ -39,7 +39,6 @@ class DareTestCase(numpy.testing.TestCase):
         r = numpy.matrix([[1.0,0.0],[0.0,1.0]])
         
         ds = DareSolver(a,b,q,r)
-        ds.disable_slycot = True
         x = ds.solve_direct()
         
         numpy.testing.assert_array_almost_equal(x, \

@@ -15,11 +15,6 @@ import math
 
 from scipy.signal.lyap import sylvester_bartels_stewart
 
-try:
-    import slycot
-except ImportError:
-    pass
-
 ITER_LIMIT = 10000
 LYAPUNOV_EPSILON = 1.0E-6
 
@@ -88,40 +83,6 @@ def dlyap_iterative(a,q,eps=LYAPUNOV_EPSILON,iter_limit=ITER_LIMIT):
         #print 'warning: lyap_solve: iteration limit reached - no convergence'
         
     return x
-
-def dlyap_slycot(a,q):
-    """Solves the discrete Lyapunov using the SLICOT library's implementation
-    if available.  The routine attempts to call SB03MD to solve the discrete
-    equation.  If a NameError is thrown, meaning SLICOT is not available,
-    an appropriate RuntimeError is raised.
-    
-    More on SLICOT: http://www.slicot.org/
-    
-    Python Interface (Slycot): https://github.com/avventi/Slycot
-    
-    Parameters
-    -----------
-    a,q : ndarray
-        Arrays representing matrices of the discrete Lyapunov equation
-        
-    Returns
-    -------
-    x : ndarray
-        The solution to the discrete Lyapunov equation
-    """
-
-    x = None
-    
-    (m,n) = a.shape
-    if m != n:
-        raise ValueError("input 'a' must be square") 
-    
-    try:
-        x,scale,sep,ferr,w = slycot.sb03md(n, -q, a, numpy.eye(n), 'D', trana='T')
-    except NameError:
-        raise RuntimeError('SLICOT not available')
-    
-    return x
     
 def dlyap_via_sylvester(a,q):
     """Computes the solution to the discrete Lyapunov equation (AXA' + X = Q) by
@@ -155,9 +116,7 @@ def dlyap(a,q,iterative=False,iteration_limit=ITER_LIMIT):
     """Solves the discrete Lyapunov equation (X = A X A' + Q) given the values
     of A and Q.  This function provides a generalized interface to three
     available solvers.  If the iterative flag is not set, the routine will fall
-    back to a direct solver.  If the Python interface to SLICOT is installed, 
-    the routine will preferentially call the SLICOT solver rather than the pure
-    Python implementation.
+    back to a direct solver.  
     
     Parameters
     -----------
@@ -181,7 +140,5 @@ def dlyap(a,q,iterative=False,iteration_limit=ITER_LIMIT):
     if iterative:
         return dlyap_iterative(a,q,iter_limit=iteration_limit)
     else:
-        try:
-            return dlyap_slycot(a,q)
-        except RuntimeError:
-            return dlyap_via_sylvester(a,q)
+        return dlyap_via_sylvester(a,q)
+        

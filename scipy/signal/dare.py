@@ -14,11 +14,6 @@ import warnings
 
 from scipy.signal.dlyap import dlyap
 
-try:
-    import slycot
-except ImportError:
-    pass
-
 EPSILON = 1.0E-5
 ITER_LIMIT = 10000
 
@@ -36,10 +31,6 @@ class DareSolver:
     of the Newton step and its solution of the Stein (or Lyapunov)
     equation.  However, the method may be sufficient for many well-
     formed problems.
-    
-    The direct solver will now make use of the Slycot package if available.
-    (http://github.com/avventi/Slycot).  This direct solver should be somewhat
-    more robust than the simple pure Python direct solver implemented here.
     
     Direct solution algorithm taken from:
     Laub, "A Schur Method for Solving Algebraic Riccati Equations."
@@ -80,7 +71,6 @@ class DareSolver:
         self.use_cyclic = False
         self.relaxation = 1.0
         self.iterations = 0
-        self.disable_slycot = False
     
     def solve_direct(self):
         """Solves the DARE equation directly using a Schur decomposition method.
@@ -110,29 +100,6 @@ class DareSolver:
         u11i = numpy.linalg.inv(u11)
 
         self.solution =  numpy.asmatrix(u21)*numpy.asmatrix(u11i)
-        return self.solution
-
-    def solve_slycot(self):
-        """Directly solves the DARE using the SLICOT library's SB02MD 
-        implementation of a generalized Schur vectors method.  If the Slycot
-        package is unavailable, a RuntimeError will be thrown.  This solver
-        should be considerably more robust than the pure-Python implementation
-        in solve_direct().  Only minimal shape checking is performed.
-        
-        More on SLICOT: http://www.slicot.org/
-    
-        Python Interface (Slycot): https://github.com/avventi/Slycot
-        """
-    
-        if self.a.shape[0] != self.a.shape[1]:
-            raise ValueError('input "a" must be a square matrix')
-    
-        try:
-            self.solution,rcond,w,s,t = slycot.sb02od(self.a.shape[1],self.b.shape[1],\
-                                                      self.a, self.b, self.q, self.r,'D')
-        except NameError:
-            raise RuntimeError('SLICOT not available')
-        
         return self.solution
 
     def cyclic_iterative_init(self):
@@ -253,19 +220,10 @@ class DareSolver:
                     
                 self.solution = self.solve_newton_iterative(eps,iter_limit,initial)
                 
-        elif self.disable_slycot:
+        else:
             self.solution = self.solve_direct()
             self.iterations = None
-            
-        else:
         
-            try:
-                self.solution = self.solve_slycot()
-            except RuntimeError:
-                self.solution = self.solve_direct()
-            self.iterations = None
-        
-
         return self.solution
         
 def dare(a,b,q,r,iterative=False):
