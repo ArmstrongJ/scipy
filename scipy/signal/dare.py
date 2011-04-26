@@ -170,8 +170,14 @@ class DareSolver:
         
         # The iterative Lyapunov solver must be used here due to the possible presence of
         # numerical instabilities.  However, the necessary accuracy at this step can be
-        # low, so the iteration count is set to 30.  
-        self.dx = dlyap(ak.transpose(),self.newton_cost(self.x))
+        # low, so the iteration count is set to 30.
+        try:
+            self.dx = dlyap(ak.transpose(),self.newton_cost(self.x))
+        except numpy.linalg.LinAlgError:
+            try:
+                self.dx = dlyap(ak.transpose(),self.newton_cost(self.x),iterative=True,iteration_limit=30)
+            except ValueError:
+                raise numpy.linalg.LinAlgError('Intermediate Lyapunov equation cannot be solved while iterating the DARE solver.')
         
         self.x = self.x+self.relaxation*self.dx
     
