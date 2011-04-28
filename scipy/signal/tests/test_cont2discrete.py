@@ -1,7 +1,7 @@
 import numpy
 import numpy.testing 
 
-from scipy.signal import c2d
+from scipy.signal import cont2discrete as c2d
 
 # Author: Jeffrey Armstrong <jeff@approximatrix.com>
 # March 29, 2011

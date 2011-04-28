@@ -1,5 +1,5 @@
 """
-c2d - Continuous to Discrete state-space transforms
+cont2discrete - Continuous to Discrete state-space transforms
 """
 
 # Author: Jeffrey Armstrong <jeff@approximatrix.com>
@@ -18,7 +18,7 @@ def _mrdivide(b,a):
     s = numpy.linalg.solve(a.transpose(),b.transpose())
     return s.transpose()
 
-def c2d(*args,**kwargs):
+def cont2discrete(*args,**kwargs):
     """Transforms a continuous state-space system to a discrete state-space
     system.  The function defaults to a bilinear transform.
     

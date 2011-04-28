@@ -7,7 +7,7 @@ from info import __doc__
 import sigtools
 from waveforms import *
 from bsplines import *
-from c2d import *
+from cont2discrete import *
 from dltisys import *
 from filter_design import *
 from fir_filter_design import *
