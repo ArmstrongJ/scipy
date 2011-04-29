@@ -1,3 +1,96 @@
+"""
+lyapunov - Routines to support the solution of continuous and discrete
+Lyapunov and Sylvester equations
+"""
+
+# Continuous Lyapunov Equation Solver(s)
+#
+# Author:Jeffrey Armstrong <jeff@rainbow-100.com>
+
+import numpy
+import scipy.linalg
+import numpy.linalg
+import warnings
+import math
+
+from scipy.linalg.lapack import get_lapack_funcs
+
+def sylvester_bartels_stewart(a,b,q):
+    """Computes a solution to the Sylvester equation (AX + XB = Q) using the
+    Bartels-Stewart algorithm.  The A and B matrices first undergo Schur
+    decompostions.  The resulting matrices are used to construct an alternative
+    Sylvester equation (RY + YS^T = F) where the R and S matrices are in quasi-
+    triangular form.  The simplified equation is then solved using DTRSYL from
+    LAPACK directly."""
+    
+    # Compute the Schur decomp form of a
+    r,u = scipy.linalg.schur(a,output='real')
+    
+    # Compute the Schur decomp of b (unnecessary)
+    s,v = scipy.linalg.schur(b.transpose(),output='real')
+    
+    # Construct f
+    f = u.transpose()*numpy.asmatrix(q)*v
+    
+    # Call the Sylvester equation solver
+    trsyl, = get_lapack_funcs(('trsyl',), (r,s,f))
+    if trsyl == None:
+        raise RuntimeError('LAPACK implementation does not contain a Sylvester equation solver (TRSYL)')    
+    y,info = trsyl(1,r,s,f,1.0,trana=0,tranb=1)
+    y = numpy.asmatrix(y)
+    
+    return -u*y*v.transpose()
+
+def lyapunov_bartels_stewart(a,q):
+    try:
+        at = a.getH()
+    except AttributeError:
+        at = numpy.asmatrix(a).getH()
+    return sylvester_bartels_stewart(a,at,q)
+
+def lyapunov(a,q):
+    """Solves the continuous Lyapunov equation (AX + XA^H = Q) given the values
+    of A and Q.  This function provides a generalized interface to two
+    available solvers. A Python implementation of the Bartels-Stewart algorithm
+    is used.
+    
+    Parameters
+    ----------
+    a : array_like
+        A square matrix
+        
+    q : array_like
+    
+    Returns
+    -------
+    x : array_like
+        Solution to the continuous Lyapunov equation
+    """
+    
+    return lyapunov_bartels_stewart(a,q)
+        
+def sylvester(a,b,q):
+    """Solves a general Sylvester equation (AX + XB = Q) via the Bartels-Stewart
+    algorithm.  While the sizes of a, b, and q must be compatible, there are no 
+    restrictions on the mathematical form of a and b.
+    
+    Parameters
+    ----------
+    a : array_like
+    
+    b : array_like
+        
+    q : array_like
+    
+    Returns
+    -------
+    x : array_like
+        Solution to the Sylvester equation
+    """
+    
+    return sylvester_bartels_stewart(a,b,q)
+    
+    
 # Discrete Lyapunov Equation Solver(s)
 #
 # Author:Jeffrey Armstrong <jeff@rainbow-100.com>
@@ -7,18 +100,10 @@
 # and appropriately relicensed.  Contains no GPL code.
 #
 
-import numpy
-import numpy.linalg
-import scipy.linalg
-import warnings
-import math
-
-from scipy.signal.lyap import sylvester_bartels_stewart
-
 ITER_LIMIT = 10000
 LYAPUNOV_EPSILON = 1.0E-6
 
-def dlyap_iterative(a,q,eps=LYAPUNOV_EPSILON,iter_limit=ITER_LIMIT):
+def dlyapunov_iterative(a,q,eps=LYAPUNOV_EPSILON,iter_limit=ITER_LIMIT):
     """Solves the Discrete Lyapunov Equation (X = A X A' + Q) via an iterative
     method.  The routine returns an estimate of X based on the A and Q input
     matrices.  
@@ -84,7 +169,7 @@ def dlyap_iterative(a,q,eps=LYAPUNOV_EPSILON,iter_limit=ITER_LIMIT):
         
     return x
     
-def dlyap_via_sylvester(a,q):
+def dlyapunov_via_sylvester(a,q):
     """Computes the solution to the discrete Lyapunov equation (AXA' + X = Q) by
     transforming the equation into a form that can utilize a Sylvester equation
     solver.  Specifically, the equation is converted to AX + X(A')^-1 = Q(A')^-1
@@ -112,7 +197,7 @@ def dlyap_via_sylvester(a,q):
     # Lyapunov equation
     return sylvester_bartels_stewart(a,-1.0*a_t_i,f)
 
-def dlyap(a,q,iterative=False,iteration_limit=ITER_LIMIT):
+def dlyapunov(a,q,iterative=False,iteration_limit=ITER_LIMIT):
     """Solves the discrete Lyapunov equation (X = A X A' + Q) given the values
     of A and Q.  This function provides a generalized interface to three
     available solvers.  If the iterative flag is not set, the routine will fall
@@ -138,7 +223,7 @@ def dlyap(a,q,iterative=False,iteration_limit=ITER_LIMIT):
     """
     
     if iterative:
-        return dlyap_iterative(a,q,iter_limit=iteration_limit)
+        return dlyapunov_iterative(a,q,iter_limit=iteration_limit)
     else:
-        return dlyap_via_sylvester(a,q)
+        return dlyapunov_via_sylvester(a,q)
         

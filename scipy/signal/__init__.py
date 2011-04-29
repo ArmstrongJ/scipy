@@ -7,15 +7,11 @@ from info import __doc__
 import sigtools
 from waveforms import *
 from bsplines import *
-from c2d import *
-from care import *
-from dare import *
-from dltisys import *
-from dlyap import dlyap
+from riccati import *
 from filter_design import *
 from fir_filter_design import *
 from ltisys import *
-from lyap import lyap, sylvester
+from lyapunov import lyapunov, sylvester, dlyapunov
 from windows import *
 from signaltools import *
 from spectral import *
