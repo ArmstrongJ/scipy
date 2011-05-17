@@ -349,7 +349,7 @@ docdict_discrete['longsummary'] = _doc_default_longsummary.replace(\
 _doc_default_frozen_note = \
 """
 Alternatively, the object may be called (as a function) to fix the shape and
-location parameters returning a "frozen" continuous RV object:
+location parameters returning a "frozen" discrete RV object:
 
 rv = %(name)s(%(shapes)s, loc=0)
     - Frozen RV object with the same methods but holding the given shape and
@@ -359,6 +359,13 @@ docdict_discrete['frozennote'] = _doc_default_frozen_note
 
 docdict_discrete['example'] = _doc_default_example.replace('[0.9,]',
                                   'Replace with reasonable value')
+
+_doc_default_before_notes = ''.join([_doc_default_longsummary,
+                                     _doc_allmethods,
+                                     _doc_default_callparams,
+                                     _doc_default_frozen_note])
+
+docdict_discrete['before_notes'] = _doc_default_before_notes
 
 _doc_default_disc = ''.join([docdict_discrete['longsummary'],
                              docdict_discrete['allmethods'],
