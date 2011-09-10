@@ -67,10 +67,12 @@ def cont2discrete(sys, dt, method="zoh", alpha=None):
     
     """
     if len(sys) == 2:
-        sysd = cont2discrete(tf2ss(sys[0], sys[1]), dt, method=method)
+        sysd = cont2discrete(tf2ss(sys[0], sys[1]), dt, method=method, 
+                             alpha=alpha)
         return ss2tf(sysd[0], sysd[1], sysd[2], sysd[3]) + (dt,)
     elif len(sys) == 3:
-        sysd = cont2discrete(zpk2ss(sys[0], sys[1], sys[2]), dt, method=method)
+        sysd = cont2discrete(zpk2ss(sys[0], sys[1], sys[2]), dt, method=method, 
+                             alpha=alpha)
         return ss2zpk(sysd[0], sysd[1], sysd[2], sysd[3]) + (dt,)
     elif len(sys) == 4:
         a, b, c, d = sys
