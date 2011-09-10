@@ -119,6 +119,16 @@ Discrete-Time Linear Systems
    dimpulse
    dstep
 
+Discrete-Time Linear Systems
+============================
+
+.. autosummary::
+   :toctree: generated/
+
+   dlsim
+   dimpulse
+   dstep
+
 LTI Representations
 ===================
 

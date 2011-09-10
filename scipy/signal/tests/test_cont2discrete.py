@@ -31,7 +31,7 @@ class TestC2D(TestCase):
         assert_almost_equal(dt_requested, dt)
 
     def test_gbt(self):
-        
+
         ac = np.eye(2)
         bc = 0.5 * np.ones((2, 1))
         cc = np.array([[0.75, 1.0], [1.0, 1.0], [1.0, 0.25]])
@@ -39,17 +39,17 @@ class TestC2D(TestCase):
         
         dt_requested = 0.5
         alpha = 1.0/3.0
-        
+
         ad_truth = 1.6 * np.eye(2)
         bd_truth = 0.3 * np.ones((2, 1))
-        cd_truth = np.array([[0.9, 1.2], 
+        cd_truth = np.array([[0.9, 1.2],
                              [1.2, 1.2],
                              [1.2, 0.3]])
         dd_truth = np.array([[0.175,],
                              [0.2,],
                              [-0.205,]])
-        
-        ad, bd, cd, dd, dt = c2d((ac, bc, cc, dc), dt_requested, 
+
+        ad, bd, cd, dd, dt = c2d((ac, bc, cc, dc), dt_requested,
                                  method='gbt',alpha=alpha)
 
         assert_array_almost_equal(ad_truth, ad)
@@ -63,16 +63,16 @@ class TestC2D(TestCase):
         bc = 0.5 * np.ones((2, 1))
         cc = np.array([[0.75, 1.0], [1.0, 1.0], [1.0, 0.25]])
         dc = np.array([[0.0,], [0.0,], [-0.33,]])
-        
+
         dt_requested = 0.5
-        
+
         ad_truth = 1.5 * np.eye(2)
         bd_truth = 0.25 * np.ones((2, 1))
-        cd_truth = np.array([[0.75, 1.0], 
+        cd_truth = np.array([[0.75, 1.0],
                              [1.0, 1.0],
                              [1.0, 0.25]])
         dd_truth = dc
-        
+
         ad, bd, cd, dd, dt = c2d((ac, bc, cc, dc), dt_requested, 
                                  method='euler')
 
@@ -85,24 +85,24 @@ class TestC2D(TestCase):
 
 
     def test_backward_diff(self):
-        
+
         ac = np.eye(2)
         bc = 0.5 * np.ones((2, 1))
         cc = np.array([[0.75, 1.0], [1.0, 1.0], [1.0, 0.25]])
         dc = np.array([[0.0,], [0.0,], [-0.33,]])
-        
+
         dt_requested = 0.5
-        
+
         ad_truth = 2.0 * np.eye(2)
         bd_truth = 0.5 * np.ones((2, 1))
-        cd_truth = np.array([[1.5, 2.0], 
+        cd_truth = np.array([[1.5, 2.0],
                              [2.0, 2.0],
                              [2.0, 0.5]])
         dd_truth = np.array([[0.875,],
                              [1.0,],
                              [0.295,]])
-        
-        ad, bd, cd, dd, dt = c2d((ac, bc, cc, dc), dt_requested, 
+
+        ad, bd, cd, dd, dt = c2d((ac, bc, cc, dc), dt_requested,
                                  method='backward_diff')
 
         assert_array_almost_equal(ad_truth, ad)
@@ -111,23 +111,23 @@ class TestC2D(TestCase):
         assert_array_almost_equal(dd_truth, dd)
 
     def test_bilinear(self):
-    
+
         ac = np.eye(2)
         bc = 0.5 * np.ones((2, 1))
         cc = np.array([[0.75, 1.0], [1.0, 1.0], [1.0, 0.25]])
         dc = np.array([[0.0,], [0.0,], [-0.33,]])
-        
+
         dt_requested = 0.5
-    
+
         ad_truth = (5.0 / 3.0) * np.eye(2)
         bd_truth = (1.0 / 3.0) * np.ones((2, 1))
-        cd_truth = np.array([[1.0, 4.0 / 3.0], 
+        cd_truth = np.array([[1.0, 4.0 / 3.0],
                              [4.0 / 3.0, 4.0 / 3.0],
                              [4.0 / 3.0, 1.0 / 3.0]])
         dd_truth = np.array([[0.291666666666667,],
                              [1.0 / 3.0,],
                              [-0.121666666666667,]])
-    
+
         ad, bd, cd, dd, dt = c2d((ac, bc, cc, dc), dt_requested, 
                                  method='bilinear')
 

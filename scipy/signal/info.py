@@ -139,6 +139,15 @@ Signal Processing Tools
     dstep:
         step response of a discrete-time LTI system.
 
+ Discrete-Time Linear Systems:
+
+    dlsim:
+        simulation of output to a discrete-time linear system.
+    dimpulse:
+        impulse response of a discrete-time LTI system.
+    dstep:
+        step response of a discrete-time LTI system.
+
  LTI Representations:
 
     tf2zpk:
