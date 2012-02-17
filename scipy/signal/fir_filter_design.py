@@ -6,6 +6,10 @@ from numpy.fft import irfft
 from scipy.special import sinc
 import sigtools
 
+__all__ = ['kaiser_beta', 'kaiser_atten', 'kaiserord',
+           'firwin', 'firwin2', 'remez']
+
+
 # Some notes on function parameters:
 #
 # `cutoff` and `width` are given as a numbers between 0 and 1.  These
@@ -42,7 +46,7 @@ def kaiser_beta(a):
     if  a > 50:
         beta = 0.1102 * (a - 8.7)
     elif a > 21:
-        beta = 0.5842 * (a - 21)**0.4 + 0.07886 * (a - 21)
+        beta = 0.5842 * (a - 21) ** 0.4 + 0.07886 * (a - 21)
     else:
         beta = 0.0
     return beta
@@ -61,8 +65,8 @@ def kaiser_atten(numtaps, width):
     N : int
         The number of taps in the FIR filter.
     width : float
-        The desired width of the transition region between passband and stopband
-        (or, in general, at any discontinuity) for the filter.
+        The desired width of the transition region between passband and
+        stopband (or, in general, at any discontinuity) for the filter.
 
     Returns
     -------
@@ -134,9 +138,9 @@ def firwin(numtaps, cutoff, width=None, window='hamming', pass_zero=True,
     """
     FIR filter design using the window method.
 
-    This function computes the coefficients of a finite impulse response filter.
-    The filter will have linear phase; it will be Type I if `numtaps` is odd and
-    Type II if `numtaps` is even.
+    This function computes the coefficients of a finite impulse response
+    filter.  The filter will have linear phase; it will be Type I if
+    `numtaps` is odd and Type II if `numtaps` is even.
 
     Type II filters always have zero response at the Nyquist rate, so a
     ValueError exception is raised if firwin is called with `numtaps` even and
@@ -241,18 +245,21 @@ def firwin(numtaps, cutoff, width=None, window='hamming', pass_zero=True,
 
     # Check for invalid input.
     if cutoff.ndim > 1:
-        raise ValueError("The cutoff argument must be at most one-dimensional.")
+        raise ValueError("The cutoff argument must be at most "
+                         "one-dimensional.")
     if cutoff.size == 0:
         raise ValueError("At least one cutoff frequency must be given.")
     if cutoff.min() <= 0 or cutoff.max() >= 1:
-        raise ValueError("Invalid cutoff frequency: frequencies must be greater than 0 and less than nyq.")
+        raise ValueError("Invalid cutoff frequency: frequencies must be "
+                         "greater than 0 and less than nyq.")
     if np.any(np.diff(cutoff) <= 0):
-        raise ValueError("Invalid cutoff frequencies: the frequencies must be strictly increasing.")
+        raise ValueError("Invalid cutoff frequencies: the frequencies "
+                         "must be strictly increasing.")
 
     if width is not None:
         # A width was given.  Find the beta parameter of the Kaiser window
         # and set `window`.  This overrides the value of `window` passed in.
-        atten = kaiser_atten(numtaps, float(width)/nyq)
+        atten = kaiser_atten(numtaps, float(width) / nyq)
         beta = kaiser_beta(atten)
         window = ('kaiser', beta)
 
@@ -261,15 +268,16 @@ def firwin(numtaps, cutoff, width=None, window='hamming', pass_zero=True,
         raise ValueError("A filter with an even number of coefficients must "
                             "have zero response at the Nyquist rate.")
 
-    # Insert 0 and/or 1 at the ends of cutoff so that the length of cutoff is even,
-    # and each pair in cutoff corresponds to passband.
-    cutoff = np.hstack(([0.0]*pass_zero, cutoff, [1.0]*pass_nyquist))
+    # Insert 0 and/or 1 at the ends of cutoff so that the length of cutoff
+    # is even, and each pair in cutoff corresponds to passband.
+    cutoff = np.hstack(([0.0] * pass_zero, cutoff, [1.0] * pass_nyquist))
 
-    # `bands` is a 2D array; each row gives the left and right edges of a passband.
-    bands = cutoff.reshape(-1,2)
+    # `bands` is a 2D array; each row gives the left and right edges of
+    # a passband.
+    bands = cutoff.reshape(-1, 2)
 
     # Build up the coefficients.
-    alpha = 0.5 * (numtaps-1)
+    alpha = 0.5 * (numtaps - 1)
     m = np.arange(0, numtaps) - alpha
     h = 0
     for left, right in bands:
@@ -302,7 +310,7 @@ def firwin(numtaps, cutoff, width=None, window='hamming', pass_zero=True,
 #
 # Rewritten by Warren Weckesser, 2010.
 
-def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0):
+def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0, antisymmetric=False):
     """FIR filter design using the window method.
 
     From the given frequencies `freq` and corresponding gains `gain`,
@@ -313,8 +321,7 @@ def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0):
     ----------
     numtaps : int
         The number of taps in the FIR filter.  `numtaps` must be less than
-        `nfreqs`.  If the gain at the Nyquist rate, `gain[-1]`, is not 0,
-        then `numtaps` must be odd.
+        `nfreqs`.
 
     freq : array-like, 1D
         The frequency sampling points. Typically 0.0 to 1.0 with 1.0 being
@@ -326,7 +333,9 @@ def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0):
         be 0, and the last value must be `nyq`.
 
     gain : array-like
-        The filter gains at the frequency sampling points.
+        The filter gains at the frequency sampling points. Certain
+        constraints to gain values, depending on the filter type, are applied,
+        see Notes for details.
 
     nfreqs : int, optional
         The size of the interpolation mesh used to construct the filter.
@@ -343,6 +352,10 @@ def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0):
     nyq : float
         Nyquist frequency.  Each frequency in `freq` must be between 0 and
         `nyq` (inclusive).
+
+    antisymmetric : bool
+        Flag setting wither resulting impulse responce is symmetric/antisymmetric.
+        See Notes for more details.
 
     Returns
     -------
@@ -371,10 +384,19 @@ def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0):
     first `numtaps` coefficients of this kernel, scaled by `window`, are
     returned.
 
-    The FIR filter will have linear phase.  The filter is Type I if `numtaps`
-    is odd and Type II if `numtaps` is even.  Because Type II filters always
-    have a zero at the Nyquist frequency, `numtaps` must be odd if `gain[-1]`
-    is not zero.
+    The FIR filter will have linear phase. The type of filter is determined by
+    the value of 'numtaps` and `antisymmetric` flag.
+    There are four possible combinations:
+       - odd  `numtaps`, `antisymmetric` is False, type I filter is produced
+       - even `numtaps`, `antisymmetric` is False, type II filter is produced
+       - odd  `numtaps`, `antisymmetric` is True, type III filter is produced
+       - even `numtaps`, `antisymmetric` is True, type IV filter is produced
+
+    Magnitude response of all but type I filters are subjects to following
+    constraints:
+       - type II  -- zero at the Nyquist frequency
+       - type III -- zero at zero and Nyquist frequencies
+       - type IV  -- zero at zero frequency
 
     .. versionadded:: 0.9.0
 
@@ -393,8 +415,9 @@ def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0):
         raise ValueError('freq and gain must be of same length.')
 
     if nfreqs is not None and numtaps >= nfreqs:
-        raise ValueError('ntaps must be less than nfreqs, but firwin2 was '
-                            'called with ntaps=%d and nfreqs=%s' % (numtaps, nfreqs))
+        raise ValueError(('ntaps must be less than nfreqs, but firwin2 was '
+                          'called with ntaps=%d and nfreqs=%s') %
+                         (numtaps, nfreqs))
 
     if freq[0] != 0 or freq[-1] != nyq:
         raise ValueError('freq must start with 0 and end with `nyq`.')
@@ -405,19 +428,33 @@ def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0):
     if (d2 == 0).any():
         raise ValueError('A value in freq must not occur more than twice.')
 
-    if numtaps % 2 == 0 and gain[-1] != 0.0:
-        raise ValueError("A filter with an even number of coefficients must "
-                            "have zero gain at the Nyquist rate.")
+    if antisymmetric:
+        if numtaps % 2 == 0:
+            ftype = 4
+        else:
+            ftype = 3
+    else:
+        if numtaps % 2 == 0:
+            ftype = 2
+        else:
+            ftype = 1
+
+    if ftype == 2 and gain[-1] != 0.0:
+        raise ValueError("A Type II filter must have zero gain at the Nyquist rate.")
+    elif ftype == 3 and (gain[0] != 0.0 or gain[-1] != 0.0):
+        raise ValueError("A Type III filter must have zero gain at zero and Nyquist rates.")
+    elif ftype == 4 and gain[0] != 0.0:
+        raise ValueError("A Type IV filter must have zero gain at zero rate.")
 
     if nfreqs is None:
-        nfreqs = 1 + 2 ** int(ceil(log(numtaps,2)))
+        nfreqs = 1 + 2 ** int(ceil(log(numtaps, 2)))
 
     # Tweak any repeated values in freq so that interp works.
     eps = np.finfo(float).eps
     for k in range(len(freq)):
-        if k < len(freq)-1 and freq[k] == freq[k+1]:
+        if k < len(freq) - 1 and freq[k] == freq[k + 1]:
             freq[k] = freq[k] - eps
-            freq[k+1] = freq[k+1] + eps
+            freq[k + 1] = freq[k + 1] + eps
 
     # Linearly interpolate the desired response on a uniform mesh `x`.
     x = np.linspace(0.0, nyq, nfreqs)
@@ -425,8 +462,12 @@ def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0):
 
     # Adjust the phases of the coefficients so that the first `ntaps` of the
     # inverse FFT are the desired filter coefficients.
-    shift = np.exp(-(numtaps-1)/2. * 1.j * np.pi * x / nyq)
+    shift = np.exp(-(numtaps - 1) / 2. * 1.j * np.pi * x / nyq)
+    if ftype > 2:
+        shift *= 1j
+
     fx2 = fx * shift
+
 
     # Use irfft to compute the inverse FFT.
     out_full = irfft(fx2)
@@ -441,6 +482,9 @@ def firwin2(numtaps, freq, gain, nfreqs=None, window='hamming', nyq=1.0):
     # Keep only the first `numtaps` coefficients in `out`, and multiply by
     # the window.
     out = out_full[:numtaps] * wind
+
+    if ftype == 3:
+        out[out.size // 2] = 0.0
 
     return out
 
@@ -530,9 +574,10 @@ def remez(numtaps, bands, desired, weight=None, Hz=1, type='bandpass',
     """
     # Convert type
     try:
-        tnum = {'bandpass':1, 'differentiator':2, 'hilbert':3}[type]
+        tnum = {'bandpass': 1, 'differentiator': 2, 'hilbert': 3}[type]
     except KeyError:
-        raise ValueError("Type must be 'bandpass', 'differentiator', or 'hilbert'")
+        raise ValueError("Type must be 'bandpass', 'differentiator', "
+                         "or 'hilbert'")
 
     # Convert weight
     if weight is None:

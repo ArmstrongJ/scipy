@@ -4,7 +4,7 @@
 # w/ additions by Travis Oliphant, March 2002
 
 __all__ = ['solve', 'solve_triangular', 'solveh_banded', 'solve_banded',
-            'inv', 'det', 'lstsq', 'pinv', 'pinv2']
+            'inv', 'det', 'lstsq', 'pinv', 'pinv2', 'solve_sylvester']
 
 import numpy as np
 
@@ -12,6 +12,7 @@ from flinalg import get_flinalg_funcs
 from lapack import get_lapack_funcs
 from misc import LinAlgError, _datacopied
 from scipy.linalg import calc_lwork
+from decomp_schur import schur
 import decomp_svd
 
 
@@ -108,6 +109,9 @@ def solve_triangular(a, b, trans=0, lower=False, unit_diagonal=False,
     LinAlgError
         If a is singular
 
+    Notes
+    -----
+    .. versionadded:: 0.9.0
     """
 
     a1, b1 = map(np.asarray_chkfinite,(a,b))
@@ -131,9 +135,10 @@ def solve_triangular(a, b, trans=0, lower=False, unit_diagonal=False,
 
 def solve_banded((l, u), ab, b, overwrite_ab=False, overwrite_b=False,
           debug=False):
-    """Solve the equation a x = b for x, assuming a is banded matrix.
+    """
+    Solve the equation a x = b for x, assuming a is banded matrix.
 
-    The matrix a is stored in ab using the matrix diagonal orded form::
+    The matrix a is stored in ab using the matrix diagonal ordered form::
 
         ab[u + i - j, j] == a[i,j]
 
@@ -427,10 +432,13 @@ def lstsq(a, b, cond=None, overwrite_a=False, overwrite_b=False):
     overwrite_a = overwrite_a or _datacopied(a1, a)
     overwrite_b = overwrite_b or _datacopied(b1, b)
     if gelss.module_name[:7] == 'flapack':
-        lwork = calc_lwork.gelss(gelss.prefix, m, n, nrhs)[1]
-        v, x, s, rank, info = gelss(a1, b1, cond=cond, lwork=lwork,
-                                                overwrite_a=overwrite_a,
-                                                overwrite_b=overwrite_b)
+        # get optimal work array
+        work = gelss(a1, b1, lwork=-1)[4]
+        lwork = work[0].real.astype(np.int)
+        v, x, s, rank, work, info = gelss(
+            a1, b1, cond=cond, lwork=lwork, overwrite_a=overwrite_a,
+            overwrite_b=overwrite_b)
+
     else:
         raise NotImplementedError('calling gelss from %s' % gelss.module_name)
     if info > 0:
@@ -539,3 +547,57 @@ def pinv2(a, cond=None, rcond=None):
             psigma[i,i] = 1.0/np.conjugate(s[i])
     #XXX: use lapack/blas routines for dot
     return np.transpose(np.conjugate(np.dot(np.dot(u,psigma),vh)))
+
+def solve_sylvester(a,b,q):
+    """Computes a solution (X) to the Sylvester equation (AX + XB = Q).
+
+    Parameters
+    ----------
+    a : array, shape (M, M)
+        Leading matrix of the Sylvester equation
+    b : array, shape (N, N)
+        Trailing matrix of the Sylvester equation
+    q : array, shape (M, N)
+        Right-hand side
+
+    Returns
+    -------
+    x : array, shape (M, N)
+
+    Raises
+    ------
+    LinAlgError
+        If solution was not found
+
+    Notes
+    -----
+    Computes a solution to the Sylvester matrix equation via the Bartels-
+    Stewart algorithm.  The A and B matrices first undergo Schur
+    decompositions.  The resulting matrices are used to construct an
+    alternative Sylvester equation (RY + YS^T = F) where the R and S
+    matrices are in quasi-triangular form (or, when R, S or F are complex,
+    triangular form).  The simplified equation is then solved using *TRSYL
+    from LAPACK directly.
+    """
+
+    # Compute the Schur decomp form of a
+    r,u = schur(a,output='real')
+
+    # Compute the Schur decomp of b
+    s,v = schur(b.conj().transpose(), output='real')
+
+    # Construct f = u'*q*v
+    f = np.dot(np.dot(u.conj().transpose(), q), v)
+
+    # Call the Sylvester equation solver
+    trsyl, = get_lapack_funcs(('trsyl',), (r,s,f))
+    if trsyl == None:
+        raise RuntimeError('LAPACK implementation does not contain a proper Sylvester equation solver (TRSYL)')
+    y, scale, info = trsyl(r, s, f, tranb='C')
+
+    y = scale*y
+
+    if info < 0:
+        raise LinAlgError("Illegal value encountered in the %d term" % (-info,))
+
+    return np.dot(np.dot(u, y), v.conj().transpose())

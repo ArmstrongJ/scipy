@@ -36,8 +36,23 @@ class dok_matrix(spmatrix, dict):
             create the matrix with initial shape (M,N)
             dtype is optional, defaulting to dtype='d'
 
+    Attributes
+    ----------
+    dtype : dtype
+        Data type of the matrix
+    shape : 2-tuple
+        Shape of the matrix
+    ndim : int
+        Number of dimensions (this is always 2)
+    nnz
+        Number of nonzero elements
+
     Notes
     -----
+
+    Sparse matrices can be used in arithmetic operations: they support
+    addition, subtraction, multiplication, division, and matrix power.
+
     Allows for efficient O(1) access of individual elements.
     Duplicates are not allowed.
     Can be efficiently converted to a coo_matrix once constructed.
@@ -103,9 +118,7 @@ class dok_matrix(spmatrix, dict):
             assert isintlike(i) and isintlike(j)
         except (AssertionError, TypeError, ValueError):
             raise IndexError('index must be a pair of integers')
-        try:
-            assert not (i < 0 or i >= self.shape[0] or j < 0 or j >= self.shape[1])
-        except AssertionError:
+        if (i < 0 or i >= self.shape[0] or j < 0 or j >= self.shape[1]):
             raise IndexError('index out of bounds')
         return dict.get(self, key, default)
 
@@ -532,7 +545,7 @@ class dok_matrix(spmatrix, dict):
 
     def resize(self, shape):
         """ Resize the matrix in-place to dimensions given by 'shape'.
-        
+
         Any non-zero elements that lie outside the new shape are removed.
         """
         if not isshape(shape):
@@ -549,7 +562,5 @@ class dok_matrix(spmatrix, dict):
 
 
 
-from sputils import _isinstance
-
 def isspmatrix_dok(x):
-    return _isinstance(x, dok_matrix)
+    return isinstance(x, dok_matrix)

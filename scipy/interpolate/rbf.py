@@ -42,10 +42,13 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
+import sys
 
 from numpy import (sqrt, log, asarray, newaxis, all, dot, exp, eye,
                    float_)
 from scipy import linalg
+
+__all__ = ['Rbf']
 
 
 class Rbf(object):
@@ -62,7 +65,7 @@ class Rbf(object):
         and d is the array of values at the nodes
     function : str or callable, optional
         The radial basis function, based on the radius, r, given by the norm
-        (defult is Euclidean distance); the default is 'multiquadric'::
+        (default is Euclidean distance); the default is 'multiquadric'::
 
             'multiquadric': sqrt((r/self.epsilon)**2 + 1)
             'inverse': 1.0/sqrt((r/self.epsilon)**2 + 1)
@@ -107,11 +110,11 @@ class Rbf(object):
         return sqrt( ((x1 - x2)**2).sum(axis=0) )
 
     def _h_multiquadric(self, r):
-            return sqrt((1.0/self.epsilon*r)**2 + 1)
+        return sqrt((1.0/self.epsilon*r)**2 + 1)
     def _h_inverse_multiquadric(self, r):
-            return 1.0/sqrt((1.0/self.epsilon*r)**2 + 1)
+        return 1.0/sqrt((1.0/self.epsilon*r)**2 + 1)
     def _h_gaussian(self, r):
-            return exp(-(1.0/self.epsilon*r)**2)
+        return exp(-(1.0/self.epsilon*r)**2)
     def _h_linear(self, r):
         return r
     def _h_cubic(self, r):
@@ -126,21 +129,21 @@ class Rbf(object):
     # Setup self._function and do smoke test on initial r
     def _init_function(self, r):
         if isinstance(self.function, str):
-           self.function = self.function.lower()
-           _mapped = {'inverse': 'inverse_multiquadric',
-                      'inverse multiquadric': 'inverse_multiquadric',
-                      'thin-plate': 'thin_plate'}                   
-           if self.function in _mapped:
-               self.function = _mapped[self.function]
+            self.function = self.function.lower()
+            _mapped = {'inverse': 'inverse_multiquadric',
+                       'inverse multiquadric': 'inverse_multiquadric',
+                       'thin-plate': 'thin_plate'}
+            if self.function in _mapped:
+                self.function = _mapped[self.function]
 
-           func_name = "_h_" + self.function
-           if hasattr(self, func_name):
-               self._function = getattr(self, func_name)
-           else:
-               functionlist = [x[3:] for x in dir(self) if x.startswith('_h_')]
-               raise ValueError("function must be a callable or one of " +
-                                    ", ".join(functionlist))
-           self._function = getattr(self, "_h_"+self.function)
+            func_name = "_h_" + self.function
+            if hasattr(self, func_name):
+                self._function = getattr(self, func_name)
+            else:
+                functionlist = [x[3:] for x in dir(self) if x.startswith('_h_')]
+                raise ValueError("function must be a callable or one of " +
+                                     ", ".join(functionlist))
+            self._function = getattr(self, "_h_"+self.function)
         elif callable(self.function):
             allow_one = False
             if hasattr(self.function, 'func_code') or \
@@ -159,14 +162,14 @@ class Rbf(object):
                 self._function = self.function
             elif argcount == 2:
                 if sys.version_info[0] >= 3:
-                    self._function = function.__get__(self, Rbf)
+                    self._function = self.function.__get__(self, Rbf)
                 else:
                     import new
                     self._function = new.instancemethod(self.function, self,
                                                         Rbf)
             else:
                 raise ValueError("Function argument must take 1 or 2 arguments.")
-                
+
         a0 = self._function(r)
         if a0.shape != r.shape:
             raise ValueError("Callable must take array and return array of the same shape")
@@ -178,8 +181,8 @@ class Rbf(object):
         self.N = self.xi.shape[-1]
         self.di = asarray(args[-1]).flatten()
 
-        assert [x.size==self.di.size for x in self.xi], \
-               'All arrays must be equal length'
+        if not all([x.size==self.di.size for x in self.xi]):
+            raise ValueError("All arrays must be equal length.")
 
         self.norm = kwargs.pop('norm', self._euclidean_norm)
         r = self._call_norm(self.xi, self.xi)
@@ -189,11 +192,11 @@ class Rbf(object):
         self.function = kwargs.pop('function', 'multiquadric')
 
         # attach anything left in kwargs to self
-        #  for use by any user-callable function or 
+        #  for use by any user-callable function or
         #  to save on the object returned.
         for item, value in kwargs.items():
             setattr(self, item, value)
-   
+
         self.A = self._init_function(r) - eye(self.N)*self.smooth
         self.nodes = linalg.solve(self.A, self.di)
 
@@ -208,9 +211,8 @@ class Rbf(object):
 
     def __call__(self, *args):
         args = [asarray(x) for x in args]
-        assert all([x.shape == y.shape \
-                    for x in args \
-                    for y in args]), 'Array lengths must be equal'
+        if not all([x.shape == y.shape for x in args for y in args]):
+            raise ValueError("Array lengths must be equal")
         shp = args[0].shape
         self.xa = asarray([a.flatten() for a in args], dtype=float_)
         r = self._call_norm(self.xa, self.xi)

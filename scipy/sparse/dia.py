@@ -8,7 +8,7 @@ import numpy as np
 
 from base import isspmatrix, _formats
 from data import _data_matrix
-from sputils import isshape, upcast, getdtype
+from sputils import isshape, upcast, upcast_char, getdtype
 from sparsetools import dia_matvec
 
 class dia_matrix(_data_matrix):
@@ -29,6 +29,26 @@ class dia_matrix(_data_matrix):
             where the ``data[k,:]`` stores the diagonal entries for
             diagonal ``offsets[k]`` (See example below)
 
+    Attributes
+    ----------
+    dtype : dtype
+        Data type of the matrix
+    shape : 2-tuple
+        Shape of the matrix
+    ndim : int
+        Number of dimensions (this is always 2)
+    nnz
+        Number of nonzero elements
+    data
+        DIA format data array of the matrix
+    offsets
+        DIA format offset array of the matrix
+
+    Notes
+    -----
+
+    Sparse matrices can be used in arithmetic operations: they support
+    addition, subtraction, multiplication, division, and matrix power.
 
     Examples
     --------
@@ -145,7 +165,8 @@ class dia_matrix(_data_matrix):
     def _mul_vector(self, other):
         x = other
 
-        y = np.zeros( self.shape[0], dtype=upcast(self.dtype,x.dtype))
+        y = np.zeros( self.shape[0], dtype=upcast_char(self.dtype.char,
+                                                       x.dtype.char))
 
         L = self.data.shape[1]
 
@@ -204,7 +225,5 @@ class dia_matrix(_data_matrix):
             return dia_matrix( (data,self.offsets), shape=self.shape)
 
 
-from sputils import _isinstance
-
 def isspmatrix_dia(x):
-    return _isinstance(x, dia_matrix)
+    return isinstance(x, dia_matrix)

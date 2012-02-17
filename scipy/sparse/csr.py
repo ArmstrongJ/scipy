@@ -37,13 +37,36 @@ class csr_matrix(_cs_matrix):
 
         csr_matrix((data, indices, indptr), [shape=(M, N)])
             is the standard CSR representation where the column indices for
-            row i are stored in ``indices[indptr[i]:indices[i+1]]`` and their
+            row i are stored in ``indices[indptr[i]:indptr[i+1]]`` and their
             corresponding values are stored in ``data[indptr[i]:indptr[i+1]]``.
             If the shape parameter is not supplied, the matrix dimensions
             are inferred from the index arrays.
 
+    Attributes
+    ----------
+    dtype : dtype
+        Data type of the matrix
+    shape : 2-tuple
+        Shape of the matrix
+    ndim : int
+        Number of dimensions (this is always 2)
+    nnz
+        Number of nonzero elements
+    data
+        CSR format data array of the matrix
+    indices
+        CSR format index array of the matrix
+    indptr
+        CSR format index pointer array of the matrix
+    has_sorted_indices
+        Whether indices are sorted
+
     Notes
     -----
+
+    Sparse matrices can be used in arithmetic operations: they support
+    addition, subtraction, multiplication, division, and matrix power.
+
     Advantages of the CSR format
       - efficient arithmetic operations CSR + CSR, CSR * CSR, etc.
       - efficient row slicing
@@ -324,6 +347,8 @@ class csr_matrix(_cs_matrix):
 
         def process_slice( sl, num ):
             if isinstance( sl, slice ):
+                if sl.step not in (1, None):
+                    raise ValueError('slicing with step != 1 not supported')
                 i0, i1 = sl.start, sl.stop
                 if i0 is None:
                     i0 = 0
@@ -367,7 +392,5 @@ class csr_matrix(_cs_matrix):
 
 
 
-from sputils import _isinstance
-
 def isspmatrix_csr(x):
-    return _isinstance(x, csr_matrix)
+    return isinstance(x, csr_matrix)

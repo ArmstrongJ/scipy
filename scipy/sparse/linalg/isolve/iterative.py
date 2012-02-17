@@ -6,19 +6,21 @@ import _iterative
 import numpy as np
 
 from scipy.sparse.linalg.interface import LinearOperator
+from scipy.lib.decorator import decorator
 from utils import make_system
 
 _type_conv = {'f':'s', 'd':'d', 'F':'c', 'D':'z'}
 
 
 # Part of the docstring common to all iterative solvers
-common_doc = \
+common_doc1 = \
 """
 Parameters
 ----------
-A : {sparse matrix, dense matrix, LinearOperator}
-    The N-by-N matrix of the linear system.
-b : {array, matrix}
+A : {sparse matrix, dense matrix, LinearOperator}"""
+
+common_doc2 = \
+"""b : {array, matrix}
     Right hand side of the linear system. Has shape (N,) or (N,1).
 
 Returns
@@ -62,15 +64,30 @@ xtype : {'f','d','F','D'}
 """
 
 
-def set_docstring(header, footer):
+def set_docstring(header, Ainfo, footer=''):
     def combine(fn):
-        fn.__doc__ = header + '\n' + common_doc + '\n' + footer
+        fn.__doc__ = '\n'.join((header, common_doc1,
+                               '    ' + Ainfo.replace('\n', '\n    '),
+                               common_doc2, footer))
         return fn
     return combine
 
+@decorator
+def non_reentrant(func, *a, **kw):
+    d = func.__dict__
+    if d.get('__entered'):
+        raise RuntimeError("%s is not re-entrant" % func.__name__)
+    try:
+        d['__entered'] = True
+        return func(*a, **kw)
+    finally:
+        d['__entered'] = False
 
-
-@set_docstring('Use BIConjugate Gradient iteration to solve A x = b','')
+@set_docstring('Use BIConjugate Gradient iteration to solve A x = b',
+               'The real or complex N-by-N matrix of the linear system\n'
+               'It is required that the linear operator can produce\n'
+               '``Ax`` and ``A^T x``.')
+@non_reentrant
 def bicg(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M=None, callback=None):
     A,M,x,b,postprocess = make_system(A,M,x0,b,xtype)
 
@@ -131,7 +148,10 @@ def bicg(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M=None, callback=Non
 
     return postprocess(x), info
 
-@set_docstring('Use BIConjugate Gradient STABilized iteration to solve A x = b','')
+@set_docstring('Use BIConjugate Gradient STABilized iteration to solve A x = b',
+               'The real or complex N-by-N matrix of the linear system\n'
+               '``A`` must represent a hermitian, positive definite matrix')
+@non_reentrant
 def bicgstab(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M=None, callback=None):
     A,M,x,b,postprocess = make_system(A,M,x0,b,xtype)
 
@@ -189,7 +209,10 @@ def bicgstab(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M=None, callback
 
     return postprocess(x), info
 
-@set_docstring('Use Conjugate Gradient iteration to solve A x = b','')
+@set_docstring('Use Conjugate Gradient iteration to solve A x = b',
+               'The real or complex N-by-N matrix of the linear system\n'
+               '``A`` must represent a hermitian, positive definite matrix')
+@non_reentrant
 def cg(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M=None, callback=None):
     A,M,x,b,postprocess = make_system(A,M,x0,b,xtype)
 
@@ -247,7 +270,9 @@ def cg(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M=None, callback=None)
     return postprocess(x), info
 
 
-@set_docstring('Use Conjugate Gradient Squared iteration to solve A x = b','')
+@set_docstring('Use Conjugate Gradient Squared iteration to solve A x = b',
+               'The real-valued N-by-N matrix of the linear system')
+@non_reentrant
 def cgs(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M=None, callback=None):
     A,M,x,b,postprocess = make_system(A,M,x0,b,xtype)
 
@@ -303,7 +328,7 @@ def cgs(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M=None, callback=None
 
     return postprocess(x), info
 
-
+@non_reentrant
 def gmres(A, b, x0=None, tol=1e-5, restart=None, maxiter=None, xtype=None, M=None, callback=None, restrt=None):
     """
     Use Generalized Minimal RESidual iteration to solve A x = b.
@@ -311,7 +336,7 @@ def gmres(A, b, x0=None, tol=1e-5, restart=None, maxiter=None, xtype=None, M=Non
     Parameters
     ----------
     A : {sparse matrix, dense matrix, LinearOperator}
-        The N-by-N matrix of the linear system.
+        The real or complex N-by-N matrix of the linear system.
     b : {array, matrix}
         Right hand side of the linear system. Has shape (N,) or (N,1).
 
@@ -470,13 +495,16 @@ def gmres(A, b, x0=None, tol=1e-5, restart=None, maxiter=None, xtype=None, M=Non
     return postprocess(x), info
 
 
+@non_reentrant
 def qmr(A, b, x0=None, tol=1e-5, maxiter=None, xtype=None, M1=None, M2=None, callback=None):
     """Use Quasi-Minimal Residual iteration to solve A x = b
 
     Parameters
     ----------
     A : {sparse matrix, dense matrix, LinearOperator}
-        The N-by-N matrix of the linear system.
+        The real-valued N-by-N matrix of the linear system.
+        It is required that the linear operator can produce
+        ``Ax`` and ``A^T x``.
     b : {array, matrix}
         Right hand side of the linear system. Has shape (N,) or (N,1).
 

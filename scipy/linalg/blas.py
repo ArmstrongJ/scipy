@@ -17,7 +17,14 @@ elif hasattr(fblas,'empty_module'):
     fblas = cblas
 
  # 'd' will be default for 'i',..
-_type_conv = {'f':'s', 'd':'d', 'F':'c', 'D':'z'}
+_type_conv = {'f':'s', 'd':'d', 'F':'c', 'D':'z', 'G':'z'}
+
+# some convenience alias for complex functions
+_blas_alias = {'cnrm2' : 'scnrm2', 'znrm2' : 'dznrm2',
+               'cdot' : 'cdotc', 'zdot' : 'zdotc',
+               'cger' : 'cgerc', 'zger' : 'zgerc',
+               'sdotc': 'sdot', 'sdotu': 'sdot',
+               'ddotc': 'ddot', 'ddotu': 'ddot'}
 
 
 def get_blas_funcs(names, arrays=(), dtype=None):
@@ -80,6 +87,7 @@ def get_blas_funcs(names, arrays=(), dtype=None):
 
     for i, name in enumerate(names):
         func_name = prefix + name
+        func_name = _blas_alias.get(func_name, func_name)
         func = getattr(module1[0], func_name, None)
         module_name = module1[1]
         if func is None:

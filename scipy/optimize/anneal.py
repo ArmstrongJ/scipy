@@ -154,7 +154,7 @@ class _state(object):
 def anneal(func, x0, args=(), schedule='fast', full_output=0,
            T0=None, Tf=1e-12, maxeval=None, maxaccept=None, maxiter=400,
            boltzmann=1.0, learn_rate=0.5, feps=1e-6, quench=1.0, m=1.0, n=1.0,
-           lower=-100, upper=100, dwell=50):
+           lower=-100, upper=100, dwell=50, disp=True):
     """Minimize a function using simulated annealing.
 
     Schedule is a schedule class implementing the annealing schedule.
@@ -197,20 +197,13 @@ def anneal(func, x0, args=(), schedule='fast', full_output=0,
         Lower and upper bounds on `x`.
     dwell : int
         The number of times to search the space at each temperature.
+    disp : bool
+        Set to True to print convergence messages.
 
     Returns
     -------
     xmin : ndarray
         Point giving smallest value found.
-    retval : int
-        Flag indicating stopping condition::
-
-                0 : Cooled to global optimum
-                1 : Cooled to final temperature
-                2 : Maximum function evaluations
-                3 : Maximum cooling iterations reached
-                4 : Maximum accepted query locations reached
-
     Jmin : float
         Minimum value of function found.
     T : float
@@ -221,8 +214,158 @@ def anneal(func, x0, args=(), schedule='fast', full_output=0,
         Number of cooling iterations.
     accept : int
         Number of tests accepted.
+    retval : int
+        Flag indicating stopping condition::
+
+                0 : Points no longer changing
+                1 : Cooled to final temperature
+                2 : Maximum function evaluations
+                3 : Maximum cooling iterations reached
+                4 : Maximum accepted query locations reached
+                5 : Final point not the minimum amongst encountered points
+
+    Notes
+    -----
+    Simulated annealing is a random algorithm which uses no derivative
+    information from the function being optimized. In practice it has
+    been more useful in discrete optimization than continuous
+    optimization, as there are usually better algorithms for continuous
+    optimization problems.
+
+    Some experimentation by trying the difference temperature
+    schedules and altering their parameters is likely required to
+    obtain good performance.
+
+    The randomness in the algorithm comes from random sampling in numpy.
+    To obtain the same results you can call numpy.random.seed with the
+    same seed immediately before calling scipy.optimize.anneal.
+
+    We give a brief description of how the three temperature schedules
+    generate new points and vary their temperature. Temperatures are
+    only updated with iterations in the outer loop. The inner loop is
+    over loop over xrange(dwell), and new points are generated for
+    every iteration in the inner loop. (Though whether the proposed
+    new points are accepted is probabilistic.)
+
+    For readability, let d denote the dimension of the inputs to func.
+    Also, let x_old denote the previous state, and k denote the
+    iteration number of the outer loop. All other variables not
+    defined below are input variables to scipy.optimize.anneal itself.
+
+    In the 'fast' schedule the updates are ::
+
+        u ~ Uniform(0, 1, size=d)
+        y = sgn(u - 0.5) * T * ((1+ 1/T)**abs(2u-1) -1.0)
+        xc = y * (upper - lower)
+        x_new = x_old + xc
+
+        c = n * exp(-n * quench)
+        T_new = T0 * exp(-c * k**quench)
+
+
+    In the 'cauchy' schedule the updates are ::
+
+        u ~ Uniform(-pi/2, pi/2, size=d)
+        xc = learn_rate * T * tan(u)
+        x_new = x_old + xc
+
+        T_new = T0 / (1+k)
+
+    In the 'boltzmann' schedule the updates are ::
+
+        std = minimum( sqrt(T) * ones(d), (upper-lower) / (3*learn_rate) )
+        y ~ Normal(0, std, size=d)
+        x_new = x_old + learn_rate * y
+
+        T_new = T0 / log(1+k)
 
     """
+
+    opts = {'schedule'  : schedule,
+            'T0'        : T0,
+            'Tf'        : Tf,
+            'maxfev'    : maxeval,
+            'maxaccept' : maxaccept,
+            'maxiter'   : maxiter,
+            'boltzmann' : boltzmann,
+            'learn_rate': learn_rate,
+            'ftol'      : feps,
+            'quench'    : quench,
+            'm'         : m,
+            'n'         : n,
+            'lower'     : lower,
+            'upper'     : upper,
+            'dwell'     : dwell,
+            'disp'      : disp}
+
+    # call _minimize_anneal full_output=True in order to always retrieve
+    # retval (aka info['status'])
+    x, info = _minimize_anneal(func, x0, args, opts, full_output=True)
+
+    if full_output:
+        return x, info['fun'], info['T'], info['nfev'], info['nit'], \
+            info['accept'], info['status']
+    else:
+        return x, info['status']
+
+def _minimize_anneal(func, x0, args=(), options={}, full_output=0):
+    """
+    Minimization of scalar function of one or more variables using the
+    simulated annealing algorithm.
+
+    Options for the simulated annealing algorithm are:
+        disp : bool
+            Set to True to print convergence messages.
+        schedule : str
+            Annealing schedule to use. One of: 'fast', 'cauchy' or
+            'boltzmann'.
+        T0 : float
+            Initial Temperature (estimated as 1.2 times the largest
+            cost-function deviation over random points in the range).
+        Tf : float
+            Final goal temperature.
+        maxfev : int
+            Maximum number of function evaluations to make.
+        maxaccept : int
+            Maximum changes to accept.
+        maxiter : int
+            Maximum number of iterations to perform.
+        boltzmann : float
+            Boltzmann constant in acceptance test (increase for less
+            stringent test at each temperature).
+        learn_rate : float
+            Scale constant for adjusting guesses.
+        ftol : float
+            Relative error in ``fun(x)`` acceptable for convergence.
+        quench, m, n : float
+            Parameters to alter fast_sa schedule.
+        lower, upper : float or ndarray
+            Lower and upper bounds on `x`.
+        dwell : int
+            The number of times to search the space at each temperature.
+
+    This function is called by the `minimize` function with
+    `method=anneal`. It is not supposed to be called directly.
+    """
+    # retrieve useful options
+    schedule   = options.get('schedule', 'fast')
+    T0         = options.get('T0')
+    Tf         = options.get('Tf', 1e-12)
+    maxeval    = options.get('maxfev')
+    maxaccept  = options.get('maxaccept')
+    maxiter    = options.get('maxiter', 400)
+    boltzmann  = options.get('boltzmann', 1.0)
+    learn_rate = options.get('learn_rate', 0.5)
+    feps       = options.get('ftol', 1e-6)
+    quench     = options.get('quench', 1.0)
+    m          = options.get('m', 1.0)
+    n          = options.get('n', 1.0)
+    lower      = options.get('lower', -100)
+    upper      = options.get('upper', 100)
+    dwell      = options.get('dwell', 50)
+    disp       = options.get('disp', False)
+
+
     x0 = asarray(x0)
     lower = asarray(lower)
     upper = asarray(upper)
@@ -238,7 +381,7 @@ def anneal(func, x0, args=(), schedule='fast', full_output=0,
         x0 = schedule.getstart_temp(best_state)
     else:
         best_state.x = None
-        best_state.cost = 300e8
+        best_state.cost = numpy.Inf
 
     last_state.x = asarray(x0).copy()
     fval = func(x0,*args)
@@ -251,7 +394,7 @@ def anneal(func, x0, args=(), schedule='fast', full_output=0,
     fqueue = [100, 300, 500, 700]
     iters = 0
     while 1:
-        for n in range(dwell):
+        for n in xrange(dwell):
             current_state.x = schedule.update_guess(last_state.x)
             current_state.cost = func(current_state.x,*args)
             schedule.feval += 1
@@ -280,9 +423,11 @@ def anneal(func, x0, args=(), schedule='fast', full_output=0,
             retval = 0
             if abs(af[-1]-best_state.cost) > feps*10:
                 retval = 5
-                print "Warning: Cooled to %f at %s but this is not" \
-                      % (squeeze(last_state.cost), str(squeeze(last_state.x))) \
-                      + " the smallest point found."
+                if disp:
+                    print "Warning: Cooled to %f at %s but this is not" \
+                          % (squeeze(last_state.cost),
+                             str(squeeze(last_state.x))) \
+                          + " the smallest point found."
             break
         if (Tf is not None) and (schedule.T < Tf):
             retval = 1
@@ -291,7 +436,8 @@ def anneal(func, x0, args=(), schedule='fast', full_output=0,
             retval = 2
             break
         if (iters > maxiter):
-            print "Warning: Maximum number of iterations exceeded."
+            if disp:
+                print "Warning: Maximum number of iterations exceeded."
             retval = 3
             break
         if (maxaccept is not None) and (schedule.accepted > maxaccept):
@@ -299,10 +445,24 @@ def anneal(func, x0, args=(), schedule='fast', full_output=0,
             break
 
     if full_output:
-        return best_state.x, best_state.cost, schedule.T, \
-               schedule.feval, iters, schedule.accepted, retval
+        info = {'solution': best_state.x,
+                'fun'     : best_state.cost,
+                'T'       : schedule.T,
+                'nfev'    : schedule.feval,
+                'nit'     : iters,
+                'accept'  : schedule.accepted,
+                'status'  : retval,
+                'success' : retval <= 1}
+        info['message'] = {0: 'Points no longer changing',
+                           1: 'Cooled to final temperature',
+                           2: 'Maximum function evaluations',
+                           3: 'Maximum cooling iterations reached',
+                           4: 'Maximum accepted query locations reached',
+                           5: 'Final point not the minimum amongst '
+                              'encountered points'}[retval]
+        return best_state.x, info
     else:
-        return best_state.x, retval
+        return best_state.x
 
 
 

@@ -307,10 +307,11 @@ int NI_SplineFilter1D(PyArrayObject *input, int order, int axis,
     return PyErr_Occurred() ? 0 : 1;
 }
 
+/* copy row of coordinate array from location at _p to _coor */
 #define CASE_MAP_COORDINATES(_p, _coor, _rank, _stride, _type) \
 case t ## _type:                                                    \
 {                                                              \
-    int _hh;                                                     \
+    npy_intp _hh;                                               \
     for(_hh = 0; _hh < _rank; _hh++) {                           \
         _coor[_hh] = *(_type*)_p;                                  \
         _p += _stride;                                             \
@@ -482,7 +483,7 @@ NI_GeometricTransform(PyArrayObject *input, int (*map)(npy_intp*, double*,
         } else if (coordinates) {
             /* mapping is from an coordinates array: */
             char *p = pc;
-            switch(coordinates->descr->type_num) {
+            switch (NI_NormalizeType(coordinates->descr->type_num)) {
                 CASE_MAP_COORDINATES(p, icoor, irank, cstride, Bool);
                 CASE_MAP_COORDINATES(p, icoor, irank, cstride, UInt8);
                 CASE_MAP_COORDINATES(p, icoor, irank, cstride, UInt16);
@@ -575,7 +576,7 @@ NI_GeometricTransform(PyArrayObject *input, int (*map)(npy_intp*, double*,
             t = 0.0;
             for(hh = 0; hh < filter_size; hh++) {
                 double coeff = 0.0;
-                switch(input->descr->type_num) {
+                switch (NI_NormalizeType(input->descr->type_num)) {
                     CASE_INTERP_COEFF(coeff, pi, idxs[hh], Bool);
                     CASE_INTERP_COEFF(coeff, pi, idxs[hh], UInt8);
                     CASE_INTERP_COEFF(coeff, pi, idxs[hh], UInt16);
@@ -605,14 +606,17 @@ NI_GeometricTransform(PyArrayObject *input, int (*map)(npy_intp*, double*,
             t = cval;
         }
         /* store output value: */
-        switch (output->descr->type_num) {
+        switch (NI_NormalizeType(output->descr->type_num)) {
             CASE_INTERP_OUT(po, t, Bool);
             CASE_INTERP_OUT_UINT(po, t, UInt8, 0, MAX_UINT8);
             CASE_INTERP_OUT_UINT(po, t, UInt16, 0, MAX_UINT16);
             CASE_INTERP_OUT_UINT(po, t, UInt32, 0, MAX_UINT32);
 #if HAS_UINT64
-            /* FIXME */
-            CASE_INTERP_OUT_UINT(po, t, UInt64, 0, MAX_UINT32);
+            /* There was a bug in numpy as of (at least) <= 1.6.1 such that
+             * MAX_UINT64 was incorrectly defined, leading to a compiler error.
+             * NPY_MAX_UINT64 is correctly defined
+             */
+            CASE_INTERP_OUT_UINT(po, t, UInt64, 0, NPY_MAX_UINT64);
 #endif
             CASE_INTERP_OUT_INT(po, t, Int8, MIN_INT8, MAX_INT8);
             CASE_INTERP_OUT_INT(po, t, Int16, MIN_INT16, MAX_INT16);
@@ -871,7 +875,7 @@ int NI_ZoomShift(PyArrayObject *input, PyArrayObject* zoom_ar,
             t = 0.0;
             for(hh = 0; hh < filter_size; hh++) {
                 double coeff = 0.0;
-                switch(input->descr->type_num) {
+                switch (NI_NormalizeType(input->descr->type_num)) {
                     CASE_INTERP_COEFF(coeff, pi, idxs[hh], Bool);
                     CASE_INTERP_COEFF(coeff, pi, idxs[hh], UInt8);
                     CASE_INTERP_COEFF(coeff, pi, idxs[hh], UInt16);
@@ -901,14 +905,17 @@ int NI_ZoomShift(PyArrayObject *input, PyArrayObject* zoom_ar,
             t = cval;
         }
         /* store output: */
-        switch (output->descr->type_num) {
+        switch (NI_NormalizeType(output->descr->type_num)) {
             CASE_INTERP_OUT(po, t, Bool);
             CASE_INTERP_OUT_UINT(po, t, UInt8, 0, MAX_UINT8);
             CASE_INTERP_OUT_UINT(po, t, UInt16, 0, MAX_UINT16);
             CASE_INTERP_OUT_UINT(po, t, UInt32, 0, MAX_UINT32);
 #if HAS_UINT64
-            /* FIXME */
-            CASE_INTERP_OUT_UINT(po, t, UInt64, 0, MAX_UINT32);
+            /* There was a bug in numpy as of (at least) <= 1.6.1 such that
+             * MAX_UINT64 was incorrectly defined, leading to a compiler error.
+             * NPY_MAX_UINT64 is correctly defined
+             */
+            CASE_INTERP_OUT_UINT(po, t, UInt64, 0, NPY_MAX_UINT64);
 #endif
             CASE_INTERP_OUT_INT(po, t, Int8, MIN_INT8, MAX_INT8);
             CASE_INTERP_OUT_INT(po, t, Int16, MIN_INT16, MAX_INT16);

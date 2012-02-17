@@ -15,6 +15,7 @@ science, and engineering.
 .. toctree::
    :maxdepth: 1
 
+   api
    release
 
 Reference
@@ -41,4 +42,5 @@ Reference
    spatial
    special
    stats
+   stats.mstats
    weave

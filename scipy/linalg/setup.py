@@ -108,30 +108,22 @@ def configuration(parent_package='',top_path=None):
                                skip_names[name])
         return target
 
-    depends = ['generic_fblas.pyf',
-               'generic_fblas1.pyf',
-               'generic_fblas2.pyf',
-               'generic_fblas3.pyf',
-               'interface_gen.py',
-               join('src','fblaswrap_veclib_c.c'),
-               join('src','fblaswrap.f'),
-               ]
 
     # fblas:
     if needs_cblas_wrapper(lapack_opt):
-        config.add_extension('fblas',
-                             sources = [generate_pyf,
-                                        join('src','fblaswrap_veclib_c.c')],
-                             depends = depends,
-                             extra_info = lapack_opt
-                             )
+        sources = ['fblas.pyf.src', join('src', 'fblaswrap_veclib_c.c')],
     else:
-        config.add_extension('fblas',
-                             sources = [generate_pyf,
-                                        join('src','fblaswrap.f')],
-                             depends = depends,
-                             extra_info = lapack_opt
-                             )
+        sources = ['fblas.pyf.src', join('src', 'fblaswrap.f')]
+
+    # Note: `depends` needs to include fblaswrap(_veclib) for both files to be
+    # included by "python setup.py sdist"
+    config.add_extension('fblas',
+                         sources = sources,
+                         depends = ['fblas_l?.pyf.src',
+                                    join('src', 'fblaswrap_veclib_c.c'),
+                                    join('src', 'fblaswrap.f')],
+                         extra_info = lapack_opt
+                         )
 
     # cblas:
     config.add_extension('cblas',
@@ -144,10 +136,8 @@ def configuration(parent_package='',top_path=None):
 
     # flapack:
     config.add_extension('flapack',
-                         sources = [generate_pyf],
-                         depends = ['generic_flapack.pyf',
-                                    'flapack_user_routines.pyf',
-                                    'interface_gen.py'],
+                         sources = ['flapack.pyf.src'],
+                         depends = ['flapack_user.pyf.src'],
                          extra_info = lapack_opt
                          )
 

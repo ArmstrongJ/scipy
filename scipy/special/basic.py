@@ -5,11 +5,28 @@
 from numpy import pi, asarray, floor, isscalar, iscomplex, real, imag, sqrt, \
         where, mgrid, cos, sin, exp, place, seterr, issubdtype, extract, \
         complexfloating, less, vectorize, inexact, nan, zeros, sometrue
-from _cephes import ellipk, mathieu_a, mathieu_b, iv, jv, gamma, psi, zeta, \
+from _cephes import ellipkm1, mathieu_a, mathieu_b, iv, jv, gamma, psi, zeta, \
         hankel1, hankel2, yv, kv, gammaln, errprint, ndtri
 import types
 import specfun
 import orthogonal
+
+__all__ = ['agm', 'ai_zeros', 'assoc_laguerre', 'bei_zeros', 'beip_zeros',
+           'ber_zeros', 'bernoulli', 'berp_zeros', 'bessel_diff_formula',
+           'bi_zeros', 'digamma', 'diric', 'ellipk', 'erf_zeros', 'erfcinv',
+           'erfinv', 'errprint', 'euler', 'fresnel_zeros',
+           'fresnelc_zeros', 'fresnels_zeros', 'gamma', 'gammaln', 'h1vp',
+           'h2vp', 'hankel1', 'hankel2', 'hyp0f1', 'iv', 'ivp', 'jn_zeros',
+           'jnjnp_zeros', 'jnp_zeros', 'jnyn_zeros', 'jv', 'jvp', 'kei_zeros',
+           'keip_zeros', 'kelvin_zeros', 'ker_zeros', 'kerp_zeros', 'kv',
+           'kvp', 'lmbda', 'lpmn', 'lpn', 'lqmn', 'lqn', 'mathieu_a',
+           'mathieu_b', 'mathieu_even_coef', 'mathieu_odd_coef', 'ndtri',
+           'obl_cv_seq', 'pbdn_seq', 'pbdv_seq', 'pbvv_seq',
+           'polygamma', 'pro_cv_seq', 'psi', 'riccati_jn', 'riccati_yn',
+           'sinc', 'sph_harm', 'sph_in', 'sph_inkn',
+           'sph_jn', 'sph_jnyn', 'sph_kn', 'sph_yn', 'y0_zeros', 'y1_zeros',
+           'y1p_zeros', 'yn_zeros', 'ynp_zeros', 'yv', 'yvp', 'zeta']
+
 
 def sinc(x):
     """Returns sin(pi*x)/(pi*x) at all points of array x.
@@ -833,6 +850,14 @@ def obl_cv_seq(m,n,c):
     maxL = n-m+1
     return specfun.segv(m,n,c,-1)[1][:maxL]
 
+def ellipk(m):
+    """y=ellipk(m) returns the complete integral of the first kind:
+    integral(1/sqrt(1-m*sin(t)**2),t=0..pi/2)
+
+    This function is rather imprecise around m==1. For more precision
+    around this point, use ellipkm1."""
+    return ellipkm1(1 - asarray(m))
+
 def agm(a,b):
     """Arithmetic, Geometric Mean
 
@@ -847,7 +872,5 @@ def agm(a,b):
     agm(a,a) = a
     min(a,b) < agm(a,b) < max(a,b)
     """
-    res1 = a+b+0.0
-    res2 = a-b
-    k = res2 / res1
-    return res1*pi/4/ellipk(k**2)
+    s = a + b + 0.0
+    return (pi / 4) * s / ellipkm1(4 * a * b / s ** 2)

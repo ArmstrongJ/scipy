@@ -12,6 +12,10 @@ import numpy as np
 from base import spmatrix, isspmatrix
 from sputils import getdtype, isshape, issequence, isscalarlike
 
+from warnings import warn
+from base import SparseEfficiencyWarning
+
+
 class lil_matrix(spmatrix):
     """Row-based linked list sparse matrix
 
@@ -23,14 +27,32 @@ class lil_matrix(spmatrix):
             with a dense matrix or rank-2 ndarray D
 
         lil_matrix(S)
-            with another sparse matrix S (equivalent to S.tocsc())
+            with another sparse matrix S (equivalent to S.tolil())
 
         lil_matrix((M, N), [dtype])
             to construct an empty matrix with shape (M, N)
             dtype is optional, defaulting to dtype='d'.
 
+    Attributes
+    ----------
+    dtype : dtype
+        Data type of the matrix
+    shape : 2-tuple
+        Shape of the matrix
+    ndim : int
+        Number of dimensions (this is always 2)
+    nnz
+        Number of nonzero elements
+    data
+        LIL format data array of the matrix
+    rows
+        LIL format row index array of the matrix
+
     Notes
     -----
+
+    Sparse matrices can be used in arithmetic operations: they support
+    addition, subtraction, multiplication, division, and matrix power.
 
     Advantages of the LIL format
         - supports flexible slicing
@@ -202,6 +224,11 @@ class lil_matrix(spmatrix):
         except (AssertionError, TypeError):
             raise IndexError('invalid index')
 
+        if not np.isscalar(i) and np.isscalar(j):
+            warn('Indexing into a lil_matrix with multiple indices is slow. '
+                 'Pre-converting to CSC or CSR beforehand is more efficient.',
+                 SparseEfficiencyWarning)
+
         if np.isscalar(i):
             if np.isscalar(j):
                 return self._get1(i, j)
@@ -232,7 +259,7 @@ class lil_matrix(spmatrix):
 
         if j < 0 or j >= self.shape[1]:
             raise IndexError('column index out of bounds')
-            
+
         if not np.isscalar(x):
             raise ValueError('setting an array element with a sequence')
 
@@ -262,11 +289,11 @@ class lil_matrix(spmatrix):
         if issequence(j):
             if xcols == len(j):
                 for jj, xi in zip(j, xrange(xcols)):
-                   pos = bisect_left(xrow, xi)
-                   if pos != len(xdata) and xrow[pos] == xi:
-                       self._insertat2(row, data, jj, xdata[pos])
-                   else:
-                       self._insertat2(row, data, jj, 0)
+                    pos = bisect_left(xrow, xi)
+                    if pos != len(xdata) and xrow[pos] == xi:
+                        self._insertat2(row, data, jj, xdata[pos])
+                    else:
+                        self._insertat2(row, data, jj, 0)
             elif xcols == 1:           # OK, broadcast across row
                 if len(xdata) > 0 and xrow[0] == 0:
                     val = xdata[0]
@@ -299,12 +326,12 @@ class lil_matrix(spmatrix):
 
         # shortcut for common case of full matrix assign:
         if isspmatrix(x):
-          if isinstance(i, slice) and i == slice(None) and \
-             isinstance(j, slice) and j == slice(None):
-               x = lil_matrix(x)
-               self.rows = x.rows
-               self.data = x.data
-               return
+            if isinstance(i, slice) and i == slice(None) and \
+               isinstance(j, slice) and j == slice(None):
+                x = lil_matrix(x)
+                self.rows = x.rows
+                self.data = x.data
+                return
 
         if isinstance(i, tuple):       # can't index lists with tuple
             i = list(i)
@@ -341,16 +368,16 @@ class lil_matrix(spmatrix):
         else:
             new = self.copy()
             # Multiply this scalar by every element.
-            new.data = np.array([[val*other for val in rowvals] for
-                                  rowvals in new.data], dtype=object)
+            new.data[:] = [[val*other for val in rowvals] for
+                           rowvals in new.data]
         return new
 
     def __truediv__(self, other):           # self / other
         if isscalarlike(other):
             new = self.copy()
             # Divide every element by this scalar
-            new.data = np.array([[val/other for val in rowvals] for
-                                  rowvals in new.data], dtype=object)
+            new.data = [[val/other for val in rowvals] for
+                        rowvals in new.data]
             return new
         else:
             return self.tocsr() / other
@@ -448,7 +475,5 @@ class lil_matrix(spmatrix):
         return self.tocsr().tocsc()
 
 
-from sputils import _isinstance
-
 def isspmatrix_lil( x ):
-    return _isinstance(x, lil_matrix)
+    return isinstance(x, lil_matrix)

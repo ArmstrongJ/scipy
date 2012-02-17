@@ -95,7 +95,7 @@ To read the NetCDF file we just created:
 #otherwise the key would be inserted into userspace attributes.
 
 
-__all__ = ['netcdf_file', 'netcdf_variable']
+__all__ = ['netcdf_file']
 
 
 from operator import mul
@@ -127,17 +127,18 @@ TYPEMAP = { NC_BYTE:   ('b', 1),
             NC_FLOAT:  ('f', 4),
             NC_DOUBLE: ('d', 8) }
 
-REVERSE = { 'b': NC_BYTE,
-            'c': NC_CHAR,
-            'h': NC_SHORT,
-            'i': NC_INT,
-            'f': NC_FLOAT,
-            'd': NC_DOUBLE,
+REVERSE = { ('b', 1): NC_BYTE,
+            ('B', 1): NC_CHAR,
+            ('c', 1): NC_CHAR,
+            ('h', 2): NC_SHORT,
+            ('i', 4): NC_INT,
+            ('f', 4): NC_FLOAT,
+            ('d', 8): NC_DOUBLE,
 
             # these come from asarray(1).dtype.char and asarray('foo').dtype.char,
             # used when getting the types from generic attributes.
-            'l': NC_INT,
-            'S': NC_CHAR }
+            ('l', 4): NC_INT,
+            ('S', 1): NC_CHAR }
 
 
 class netcdf_file(object):
@@ -217,7 +218,7 @@ class netcdf_file(object):
         """Closes the NetCDF file."""
         if not self.fp.closed:
             try:
-               self.flush()
+                self.flush()
             finally:
                 self.fp.close()
     __del__ = close
@@ -281,11 +282,13 @@ class netcdf_file(object):
 
         if isinstance(type, basestring): type = dtype(type)
         typecode, size = type.char, type.itemsize
+        if (typecode, size) not in REVERSE:
+            raise ValueError("NetCDF 3 does not support type %s" % type)
         dtype_ = '>%s' % typecode
         if size > 1: dtype_ += str(size)
 
         data = empty(shape_, dtype=dtype_)
-        self.variables[name] = netcdf_variable(data, typecode, shape, dimensions)
+        self.variables[name] = netcdf_variable(data, typecode, size, shape, dimensions)
         return self.variables[name]
 
     def flush(self):
@@ -378,7 +381,7 @@ class netcdf_file(object):
 
         self._write_att_array(var._attributes)
 
-        nc_type = REVERSE[var.typecode()]
+        nc_type = REVERSE[var.typecode(), var.itemsize()]
         self.fp.write(asbytes(nc_type))
 
         if not var.isrec:
@@ -438,7 +441,7 @@ class netcdf_file(object):
 
     def _write_values(self, values):
         if hasattr(values, 'dtype'):
-            nc_type = REVERSE[values.dtype.char]
+            nc_type = REVERSE[values.dtype.char, values.dtype.itemsize]
         else:
             types = [
                     (int, NC_INT),
@@ -454,11 +457,7 @@ class netcdf_file(object):
                 if isinstance(sample, class_): break
 
         typecode, size = TYPEMAP[nc_type]
-        if typecode is 'c':
-            dtype_ = '>c'
-        else:
-            dtype_ = '>%s' % typecode
-            if size > 1: dtype_ += str(size)
+        dtype_ = '>%s' % typecode
 
         values = asarray(values, dtype=dtype_)
 
@@ -496,7 +495,8 @@ class netcdf_file(object):
 
     def _read_dim_array(self):
         header = self.fp.read(4)
-        assert header in [ZERO, NC_DIMENSION]
+        if not header in [ZERO, NC_DIMENSION]:
+            raise ValueError("Unexpected header.")
         count = self._unpack_int()
 
         for dim in range(count):
@@ -511,7 +511,8 @@ class netcdf_file(object):
 
     def _read_att_array(self):
         header = self.fp.read(4)
-        assert header in [ZERO, NC_ATTRIBUTE]
+        if not header in [ZERO, NC_ATTRIBUTE]:
+            raise ValueError("Unexpected header.")
         count = self._unpack_int()
 
         attributes = {}
@@ -522,7 +523,8 @@ class netcdf_file(object):
 
     def _read_var_array(self):
         header = self.fp.read(4)
-        assert header in [ZERO, NC_VARIABLE]
+        if not header in [ZERO, NC_VARIABLE]:
+            raise ValueError("Unexpected header.")
 
         begin = 0
         dtypes = {'names': [], 'formats': []}
@@ -580,7 +582,7 @@ class netcdf_file(object):
 
             # Add variable.
             self.variables[name] = netcdf_variable(
-                    data, typecode, shape, dimensions, attributes)
+                    data, typecode, size, shape, dimensions, attributes)
 
         if rec_vars:
             # Remove padding when only one record variable.
@@ -624,11 +626,7 @@ class netcdf_file(object):
         begin = [self._unpack_int, self._unpack_int64][self.version_byte-1]()
 
         typecode, size = TYPEMAP[nc_type]
-        if typecode is 'c':
-            dtype_ = '>c'
-        else:
-            dtype_ = '>%s' % typecode
-            if size > 1: dtype_ += str(size)
+        dtype_ = '>%s' % typecode
 
         return name, dimensions, shape, attributes, typecode, size, dtype_, begin, vsize
 
@@ -643,7 +641,7 @@ class netcdf_file(object):
         self.fp.read(-count % 4)  # read padding
 
         if typecode is not 'c':
-            values = fromstring(values, dtype='>%s%d' % (typecode, size))
+            values = fromstring(values, dtype='>%s' % typecode)
             if values.shape == (1,): values = values[0]
         else:
             values = values.rstrip(asbytes('\x00'))
@@ -707,6 +705,8 @@ class netcdf_variable(object):
         Typically, this is initialized as empty, but with the proper shape.
     typecode : dtype character code
         Desired data-type for the data array.
+    size : int
+        Desired element size for the data array.
     shape : sequence of ints
         The shape of the array.  This should match the lengths of the
         variable's dimensions.
@@ -730,9 +730,10 @@ class netcdf_variable(object):
     isrec, shape
 
     """
-    def __init__(self, data, typecode, shape, dimensions, attributes=None):
+    def __init__(self, data, typecode, size, shape, dimensions, attributes=None):
         self.data = data
         self._typecode = typecode
+        self._size = size
         self._shape = shape
         self.dimensions = dimensions
 
@@ -750,10 +751,23 @@ class netcdf_variable(object):
         self.__dict__[attr] = value
 
     def isrec(self):
+        """Returns whether the variable has a record dimension or not.
+
+        A record dimension is a dimension along which additional data could be
+        easily appended in the netcdf data structure without much rewriting of
+        the data file. This attribute is a read-only property of the
+        `netcdf_variable`.
+
+        """
         return self.data.shape and not self._shape[0]
     isrec = property(isrec)
 
     def shape(self):
+        """Returns the shape tuple of the data variable.
+
+        This is a read-only attribute and can not be modified in the
+        same manner of other numpy arrays.
+        """
         return self.data.shape
     shape = property(shape)
 
@@ -787,6 +801,14 @@ class netcdf_variable(object):
             netcdf variable.
 
         """
+        if not self.data.flags.writeable:
+            # Work-around for a bug in NumPy.  Calling itemset() on a read-only
+            # memory-mapped array causes a seg. fault.
+            # See NumPy ticket #1622, and SciPy ticket #1202.
+            # This check for `writeable` can be removed when the oldest version
+            # of numpy still supported by scipy contains the fix for #1622.
+            raise RuntimeError("variable is not writeable")
+
         self.data.itemset(value)
 
     def typecode(self):
@@ -800,6 +822,18 @@ class netcdf_variable(object):
 
         """
         return self._typecode
+
+    def itemsize(self):
+        """
+        Return the itemsize of the variable.
+
+        Returns
+        -------
+        itemsize : int
+            The element size of the variable (eg, 8 for float64).
+
+        """
+        return self._size
 
     def __getitem__(self, index):
         return self.data[index]

@@ -19,15 +19,17 @@ Run tests if linalg is not installed:
   python tests/test_basic.py
 """
 
+import numpy as np
 from numpy import arange, array, dot, zeros, identity, conjugate, transpose, \
         float32
 import numpy.linalg as linalg
 
 from numpy.testing import TestCase, rand, run_module_suite, assert_raises, \
-    assert_equal, assert_almost_equal, assert_array_almost_equal, assert_
+    assert_equal, assert_almost_equal, assert_array_almost_equal, assert_, \
+    assert_allclose
 
 from scipy.linalg import solve, inv, det, lstsq, pinv, pinv2, norm,\
-        solve_banded, solveh_banded, solve_triangular
+        solve_banded, solveh_banded, solve_triangular, solve_sylvester
 
 from scipy.linalg._testutils import assert_no_overwrite
 
@@ -538,7 +540,6 @@ class TestPinv(TestCase):
         assert_array_almost_equal(dot(a,a_pinv),[[1,0,0],[0,1,0],[0,0,1]])
         a_pinv = pinv2(a)
         assert_array_almost_equal(dot(a,a_pinv),[[1,0,0],[0,1,0],[0,0,1]])
-
     def test_simple_0det(self):
         a=array([[1,2,3],[4,5,6.],[7,8,9]])
         a_pinv = pinv(a)
@@ -557,7 +558,87 @@ class TestPinv(TestCase):
         a_pinv2 = pinv2(a)
         assert_array_almost_equal(a_pinv,a_pinv2)
 
+
+class TestSolveSylvester(TestCase):
+
+    cases = [
+        # a, b, c all real.
+        (np.array([[1, 2], [0, 4]]),
+         np.array([[5, 6], [0, 8]]),
+         np.array([[9, 10], [11, 12]])),
+        # a, b, c all real, 4x4. a and b have non-trival 2x2 blocks in their
+        # quasi-triangular form.
+        (np.array([[1.0, 0, 0, 0], [0, 1.0, 2.0, 0.0], [0, 0, 3.0, -4], [0, 0, 2, 5]]),
+         np.array([[2.0, 0, 0,1.0], [0, 1.0, 0.0, 0.0], [0, 0, 1.0, -1], [0, 0, 1, 1]]),
+         np.array([[1.0, 0, 0, 0], [0, 1.0, 0, 0], [0, 0, 1.0, 0], [0, 0, 0, 1.0]])),
+        # a, b, c all complex.
+        (np.array([[1.0+1j, 2.0], [3.0-4.0j, 5.0]]),
+         np.array([[-1.0, 2j], [3.0, 4.0]]),
+         np.array([[2.0-2j, 2.0+2j],[-1.0-1j, 2.0]])),
+        # a and b real; c complex.
+        (np.array([[1.0, 2.0], [3.0, 5.0]]),
+         np.array([[-1.0, 0], [3.0, 4.0]]),
+         np.array([[2.0-2j, 2.0+2j],[-1.0-1j, 2.0]])),
+        # a and c complex; b real.
+        (np.array([[1.0+1j, 2.0], [3.0-4.0j, 5.0]]),
+         np.array([[-1.0, 0], [3.0, 4.0]]),
+         np.array([[2.0-2j, 2.0+2j],[-1.0-1j, 2.0]])),
+        # a complex; b and c real.
+        (np.array([[1.0+1j, 2.0], [3.0-4.0j, 5.0]]),
+         np.array([[-1.0, 0], [3.0, 4.0]]),
+         np.array([[2.0, 2.0],[-1.0, 2.0]])),
+        # not square matrices, real
+        (np.array([[8, 1, 6], [3, 5, 7], [4, 9, 2]]),
+         np.array([[2, 3], [4, 5]]),
+         np.array([[1, 2], [3, 4], [5, 6]])),
+        # not square matrices, complex
+        (np.array([[8, 1j, 6+2j], [3, 5, 7], [4, 9, 2]]),
+         np.array([[2, 3], [4, 5-1j]]),
+         np.array([[1, 2j], [3, 4j], [5j, 6+7j]])),
+    ]
+
+    def check_case(self, a, b, c):
+        x = solve_sylvester(a, b, c)
+        assert_array_almost_equal(np.dot(a, x) + np.dot(x, b), c)
+
+    def test_cases(self):
+        for case in self.cases:
+            self.check_case(case[0], case[1], case[2])
+
+    def test_trivial(self):
+        a = np.array([[1.0, 0.0], [0.0, 1.0]])
+        b = np.array([[1.0]])
+        c = np.array([2.0, 2.0]).reshape(-1,1)
+        x = solve_sylvester(a, b, c)
+        assert_array_almost_equal(x, array([1.0, 1.0]).reshape(-1,1))
+
+
 class TestNorm(object):
+
+    def test_types(self):
+        for dtype in np.typecodes['AllFloat']:
+            x = np.array([1,2,3], dtype=dtype)
+            tol = max(1e-15, np.finfo(dtype).eps.real * 20)
+            assert_allclose(norm(x), np.sqrt(14), rtol=tol)
+            assert_allclose(norm(x, 2), np.sqrt(14), rtol=tol)
+
+        for dtype in np.typecodes['Complex']:
+            x = np.array([1j,2j,3j], dtype=dtype)
+            tol = max(1e-15, np.finfo(dtype).eps.real * 20)
+            assert_allclose(norm(x), np.sqrt(14), rtol=tol)
+            assert_allclose(norm(x, 2), np.sqrt(14), rtol=tol)
+
+    def test_overflow(self):
+        # unlike numpy's norm, this one is
+        # safer on overflow
+        a = array([1e20], dtype=float32)
+        assert_almost_equal(norm(a), a)
+
+    def test_stable(self):
+        # more stable than numpy's norm
+        a = array([1e4] + [1]*10000, dtype=float32)
+        assert_almost_equal(norm(a) - 1e4, 0.5)
+
     def test_zero_norm(self):
         assert_equal(norm([1,0,3], 0), 2)
         assert_equal(norm([1,2,3], 0), 3)

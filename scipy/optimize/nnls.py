@@ -1,9 +1,13 @@
 import _nnls
 from numpy import asarray_chkfinite, zeros, double
 
+__all__ = ['nnls']
+
+
 def nnls(A,b):
     """
-    Solve ``argmin_x || Ax - b ||_2`` for ``x>=0``.
+    Solve ``argmin_x || Ax - b ||_2`` for ``x>=0``. This is a wrapper
+    for a FORTAN non-negative least squares solver.
 
     Parameters
     ----------
@@ -21,7 +25,13 @@ def nnls(A,b):
 
     Notes
     -----
-    This is a wrapper for ``NNLS.F``.
+    The FORTRAN code was published in the book below. The algorithm
+    is an active set method. It solves the KKT (Karush-Kuhn-Tucker)
+    conditions for the non-negative least squares problem.
+
+    References
+    ----------
+    Lawson C., Hanson R.J., (1987) Solving Least Squares Problems, SIAM
 
     """
 
@@ -46,4 +56,3 @@ def nnls(A,b):
         raise RuntimeError("too many iterations")
 
     return x, rnorm
-

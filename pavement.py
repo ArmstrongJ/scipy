@@ -87,7 +87,21 @@ from paver.easy import options, Bunch, task, needs, dry, sh, call_task, cmdopts
 sys.path.insert(0, os.path.dirname(__file__))
 try:
     setup_py = __import__("setup")
-    FULLVERSION = setup_py.FULLVERSION
+    FULLVERSION = setup_py.VERSION
+    # This is duplicated from setup.py
+    if os.path.exists('.git'):
+        GIT_REVISION = setup_py.git_version()
+    elif os.path.exists('scipy/version.py'):
+        # must be a source distribution, use existing version file
+        from numpy.version import git_revision as GIT_REVISION
+    else:
+        GIT_REVISION = "Unknown"
+
+    if not setup_py.ISRELEASED:
+        if GIT_REVISION == "Unknown":
+            FULLVERSION += '.dev'
+        else:
+            FULLVERSION += '.dev-' + GIT_REVISION[:7]
 finally:
     sys.path.pop(0)
 
@@ -97,11 +111,11 @@ finally:
 #-----------------------------------
 
 # Source of the release notes
-RELEASE = 'doc/release/0.9.0-notes.rst'
+RELEASE = 'doc/release/0.11.0-notes.rst'
 
 # Start/end of the log (from git)
-LOG_START = 'svn/tags/0.8.0'
-LOG_END = 'svn/0.9.x'
+LOG_START = 'v0.10.0'
+LOG_END = 'master'
 
 
 #-------------------------------------------------------
@@ -141,6 +155,7 @@ if sys.platform == "win32":
     WINE_PY26 = [r"C:\Python26\python26.exe"]
     WINE_PY27 = [r"C:\Python27\python27.exe"]
     WINE_PY31 = [r"C:\Python31\python.exe"]
+    WINE_PY32 = [r"C:\Python32\python.exe"]
     WINDOWS_ENV = os.environ
     MAKENSIS = ["makensis"]
 elif sys.platform == "darwin":
@@ -148,6 +163,7 @@ elif sys.platform == "darwin":
     WINE_PY26 = ["wine", os.environ['HOME'] + "/.wine/drive_c/Python26/python.exe"]
     WINE_PY27 = ["wine", os.environ['HOME'] + "/.wine/drive_c/Python27/python.exe"]
     WINE_PY31 = ["wine", os.environ['HOME'] + "/.wine/drive_c/Python31/python.exe"]
+    WINE_PY32 = ["wine", os.environ['HOME'] + "/.wine/drive_c/Python32/python.exe"]
     WINDOWS_ENV = os.environ
     WINDOWS_ENV["DYLD_FALLBACK_LIBRARY_PATH"] = "/usr/X11/lib:/usr/lib"
     MAKENSIS = ["wine", "makensis"]
@@ -156,15 +172,18 @@ else:
     WINE_PY26 = [os.environ['HOME'] + "/.wine/drive_c/Python26/python.exe"]
     WINE_PY27 = [os.environ['HOME'] + "/.wine/drive_c/Python27/python.exe"]
     WINE_PY31 = [os.environ['HOME'] + "/.wine/drive_c/Python31/python.exe"],
+    WINE_PY32 = [os.environ['HOME'] + "/.wine/drive_c/Python32/python.exe"],
     WINDOWS_ENV = os.environ
     MAKENSIS = ["wine", "makensis"]
-WINE_PYS = {'3.1':WINE_PY31, '2.7':WINE_PY27, '2.6':WINE_PY26, '2.5':WINE_PY25}
+WINE_PYS = {'3.2':WINE_PY32, '3.1':WINE_PY31, '2.7':WINE_PY27,
+            '2.6':WINE_PY26, '2.5':WINE_PY25}
 
 # Framework Python locations on OS X
 MPKG_PYTHON = {"2.5": "/Library/Frameworks/Python.framework/Versions/2.5/bin/python",
         "2.6": "/Library/Frameworks/Python.framework/Versions/2.6/bin/python",
         "2.7": "/Library/Frameworks/Python.framework/Versions/2.7/bin/python",
-        "3.1": "/Library/Frameworks/Python.framework/Versions/3.1/bin/python3"}
+        "3.1": "/Library/Frameworks/Python.framework/Versions/3.1/bin/python3",
+        "3.2": "/Library/Frameworks/Python.framework/Versions/3.2/bin/python3"}
 # Full path to the *static* gfortran runtime
 LIBGFORTRAN_A_PATH = "/usr/local/lib/libgfortran.a"
 
@@ -607,7 +626,7 @@ Checksums
 
 def write_log_task(filename='Changelog'):
     st = subprocess.Popen(
-            ['git', 'svn', 'log',  '%s..%s' % (LOG_START, LOG_END)],
+            ['git', 'log',  '%s..%s' % (LOG_START, LOG_END)],
             stdout=subprocess.PIPE)
 
     out = st.communicate()[0]
@@ -625,5 +644,5 @@ def write_log():
 
 @task
 def write_release_and_log():
-    write_release_task(os.path.join(options.installers.releasedir, 'NOTES.txt'))
+    write_release_task(os.path.join(options.installers.releasedir, 'README.txt'))
     write_log_task(os.path.join(options.installers.releasedir, 'Changelog'))

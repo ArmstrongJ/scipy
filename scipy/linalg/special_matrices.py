@@ -1,10 +1,22 @@
 
 import math
 import numpy as np
+from scipy.misc import comb
+
+
+__all__ = ['tri', 'tril', 'triu', 'toeplitz', 'circulant', 'hankel',
+           'hadamard', 'leslie', 'all_mat', 'kron', 'block_diag', 'companion',
+           'hilbert', 'invhilbert', 'pascal']
+
 
 #-----------------------------------------------------------------------------
 # matrix construction functions
 #-----------------------------------------------------------------------------
+
+#
+# *Note*: tri{,u,l} is implemented in numpy, but an important bug was fixed in
+# 2.0.0.dev-1af2f3, the following tri{,u,l} definitions are here for backwards
+# compatibility.
 
 def tri(N, M=None, k=0, dtype=None):
     """
@@ -43,20 +55,22 @@ def tri(N, M=None, k=0, dtype=None):
            [1, 1, 0, 0, 0]])
 
     """
-    if M is None: M = N
+    if M is None:
+        M = N
     if type(M) == type('d'):
         #pearu: any objections to remove this feature?
         #       As tri(N,'d') is equivalent to tri(N,dtype='d')
         dtype = M
         M = N
-    m = np.greater_equal(np.subtract.outer(np.arange(N), np.arange(M)),-k)
+    m = np.greater_equal(np.subtract.outer(np.arange(N), np.arange(M)), -k)
     if dtype is None:
         return m
     else:
         return m.astype(dtype)
 
+
 def tril(m, k=0):
-    """Construct a copy of a matrix with elements above the k-th diagonal zeroed.
+    """Make a copy of a matrix with elements above the k-th diagonal zeroed.
 
     Parameters
     ----------
@@ -81,11 +95,12 @@ def tril(m, k=0):
 
     """
     m = np.asarray(m)
-    out = tri(m.shape[0], m.shape[1], k=k, dtype=m.dtype.char)*m
+    out = tri(m.shape[0], m.shape[1], k=k, dtype=m.dtype.char) * m
     return out
 
+
 def triu(m, k=0):
-    """Construct a copy of a matrix with elements below the k-th diagonal zeroed.
+    """Make a copy of a matrix with elements below the k-th diagonal zeroed.
 
     Parameters
     ----------
@@ -101,7 +116,7 @@ def triu(m, k=0):
 
     Examples
     --------
-    >>> from scipy.linalg import tril
+    >>> from scipy.linalg import triu
     >>> triu([[1,2,3],[4,5,6],[7,8,9],[10,11,12]], -1)
     array([[ 1,  2,  3],
            [ 4,  5,  6],
@@ -110,7 +125,7 @@ def triu(m, k=0):
 
     """
     m = np.asarray(m)
-    out = (1-tri(m.shape[0], m.shape[1], k-1, m.dtype.char))*m
+    out = (1 - tri(m.shape[0], m.shape[1], k - 1, m.dtype.char)) * m
     return out
 
 
@@ -171,11 +186,12 @@ def toeplitz(c, r=None):
     # Form a 1D array of values to be used in the matrix, containing a reversed
     # copy of r[1:], followed by c.
     vals = np.concatenate((r[-1:0:-1], c))
-    a, b = np.ogrid[0:len(c), len(r)-1:-1:-1]
+    a, b = np.ogrid[0:len(c), len(r) - 1:-1:-1]
     indx = a + b
-    # `indx` is a 2D array of indices into the 1D array `vals`, arranged so that
-    # `vals[indx]` is the Toeplitz matrix.
+    # `indx` is a 2D array of indices into the 1D array `vals`, arranged so
+    # that `vals[indx]` is the Toeplitz matrix.
     return vals[indx]
+
 
 def circulant(c):
     """
@@ -215,6 +231,7 @@ def circulant(c):
     # `indx` is a 2D array of indices into `c`, arranged so that `c[indx]` is
     # the circulant matrix.
     return c[indx]
+
 
 def hankel(c, r=None):
     """
@@ -269,9 +286,10 @@ def hankel(c, r=None):
     vals = np.concatenate((c, r[1:]))
     a, b = np.ogrid[0:len(c), 0:len(r)]
     indx = a + b
-    # `indx` is a 2D array of indices into the 1D array `vals`, arranged so that
-    # `vals[indx]` is the Hankel matrix.
+    # `indx` is a 2D array of indices into the 1D array `vals`, arranged so
+    # that `vals[indx]` is the Hankel matrix.
     return vals[indx]
+
 
 def hadamard(n, dtype=int):
     """
@@ -298,6 +316,7 @@ def hadamard(n, dtype=int):
 
     Examples
     --------
+    >>> from scipy.linalg import hadamard
     >>> hadamard(2, dtype=complex)
     array([[ 1.+0.j,  1.+0.j],
            [ 1.+0.j, -1.-0.j]])
@@ -308,7 +327,7 @@ def hadamard(n, dtype=int):
            [ 1, -1, -1,  1]])
 
     """
-    
+
     # This function is a slightly modified version of the
     # function contributed by Ivo in ticket #675.
 
@@ -317,12 +336,13 @@ def hadamard(n, dtype=int):
     else:
         lg2 = int(math.log(n, 2))
     if 2 ** lg2 != n:
-        raise ValueError("n must be an positive integer, and n must be power of 2")
+        raise ValueError("n must be an positive integer, and n must be "
+                         "a power of 2")
 
     H = np.array([[1]], dtype=dtype)
 
     # Sylvester's construction
-    for i in range(0, lg2): 
+    for i in range(0, lg2):
         H = np.vstack((np.hstack((H, H)), np.hstack((H, -H))))
 
     return H
@@ -372,6 +392,7 @@ def leslie(f, s):
 
     Examples
     --------
+    >>> from scipy.linalg import leslie
     >>> leslie([0.1, 2.0, 1.0, 0.1], [0.2, 0.8, 0.7])
     array([[ 0.1,  2. ,  1. ,  0.1],
            [ 0.2,  0. ,  0. ,  0. ],
@@ -393,16 +414,17 @@ def leslie(f, s):
 
     tmp = f[0] + s[0]
     n = f.size
-    a = np.zeros((n,n), dtype=tmp.dtype)
+    a = np.zeros((n, n), dtype=tmp.dtype)
     a[0] = f
-    a[range(1,n), range(0,n-1)] = s
+    a[range(1, n), range(0, n - 1)] = s
     return a
 
 
 def all_mat(*args):
-    return map(np.matrix,args)
+    return map(np.matrix, args)
 
-def kron(a,b):
+
+def kron(a, b):
     """Kronecker product of a and b.
 
     The result is the block matrix::
@@ -424,7 +446,8 @@ def kron(a,b):
 
     Examples
     --------
-    >>> from scipy import kron, array
+    >>> from numpy import array
+    >>> from scipy.linalg import kron
     >>> kron(array([[1,2],[3,4]]), array([[1,1,1]]))
     array([[1, 1, 1, 2, 2, 2],
            [3, 3, 3, 4, 4, 4]])
@@ -434,9 +457,10 @@ def kron(a,b):
         a = np.reshape(a, a.shape)
     if not b.flags['CONTIGUOUS']:
         b = np.reshape(b, b.shape)
-    o = np.outer(a,b)
+    o = np.outer(a, b)
     o = o.reshape(a.shape + b.shape)
     return np.concatenate(np.concatenate(o, axis=1), axis=1)
+
 
 def block_diag(*arrs):
     """
@@ -468,6 +492,7 @@ def block_diag(*arrs):
 
     Examples
     --------
+    >>> from scipy.linalg import block_diag
     >>> A = [[1, 0],
     ...      [0, 1]]
     >>> B = [[3, 4, 5],
@@ -493,7 +518,7 @@ def block_diag(*arrs):
     bad_args = [k for k in range(len(arrs)) if arrs[k].ndim > 2]
     if bad_args:
         raise ValueError("arguments in the following positions have dimension "
-                            "greater than 2: %s" % bad_args) 
+                            "greater than 2: %s" % bad_args)
 
     shapes = np.array([a.shape for a in arrs])
     out = np.zeros(np.sum(shapes, axis=0), dtype=arrs[0].dtype)
@@ -504,6 +529,7 @@ def block_diag(*arrs):
         r += rr
         c += cc
     return out
+
 
 def companion(a):
     """
@@ -553,7 +579,8 @@ def companion(a):
     a = np.atleast_1d(a)
 
     if a.ndim != 1:
-        raise ValueError("Incorrect shape for `a`.  `a` must be one-dimensional.")
+        raise ValueError("Incorrect shape for `a`.  `a` must be "
+                         "one-dimensional.")
 
     if a.size < 2:
         raise ValueError("The length of `a` must be at least 2.")
@@ -561,9 +588,199 @@ def companion(a):
     if a[0] == 0:
         raise ValueError("The first coefficient in `a` must not be zero.")
 
-    first_row = -a[1:]/(1.0*a[0])
+    first_row = -a[1:] / (1.0 * a[0])
     n = a.size
-    c = np.zeros((n-1, n-1), dtype=first_row.dtype)
+    c = np.zeros((n - 1, n - 1), dtype=first_row.dtype)
     c[0] = first_row
-    c[range(1,n-1), range(0, n-2)] = 1
+    c[range(1, n - 1), range(0, n - 2)] = 1
     return c
+
+
+def hilbert(n):
+    """Create a Hilbert matrix of order `n`.
+
+    Returns the `n` by `n` array with entries `h[i,j] = 1 / (i + j + 1)`.
+
+    Parameters
+    ----------
+    n : int
+        The size of the array to create.
+
+    Returns
+    -------
+    h : ndarray with shape (n, n)
+        The Hilbert matrix.
+
+    See Also
+    --------
+    invhilbert : Compute the inverse of a Hilbert matrix.
+
+    Notes
+    -----
+    .. versionadded:: 0.10.0
+
+    Examples
+    --------
+    >>> from scipy.linalg import hilbert
+    >>> hilbert(3)
+    array([[ 1.        ,  0.5       ,  0.33333333],
+           [ 0.5       ,  0.33333333,  0.25      ],
+           [ 0.33333333,  0.25      ,  0.2       ]])
+
+    """
+    values = 1.0 / (1.0 + np.arange(2 * n - 1))
+    h = hankel(values[:n], r=values[n - 1:])
+    return h
+
+
+def invhilbert(n, exact=False):
+    """Compute the inverse of the Hilbert matrix of order `n`.
+
+    The entries in the inverse of a Hilbert matrix are integers.  When `n`
+    is greater than 14, some entries in the inverse exceed the upper limit
+    of 64 bit integers.  The `exact` argument provides two options for
+    dealing with these large integers.
+
+    Parameters
+    ----------
+    n : int
+        The order of the Hilbert matrix.
+    exact : bool
+        If False, the data type of the array that is returned is np.float64,
+        and the array is an approximation of the inverse.
+        If True, the array is the exact integer inverse array.  To represent
+        the exact inverse when n > 14, the returned array is an object array
+        of long integers.  For n <= 14, the exact inverse is returned as an
+        array with data type np.int64.
+
+    Returns
+    -------
+    invh : ndarray with shape (n, n)
+        The data type of the array is np.float64 if `exact` is False.
+        If `exact` is True, the data type is either np.int64 (for n <= 14)
+        or object (for n > 14).  In the latter case, the objects in the
+        array will be long integers.
+
+    See Also
+    --------
+    hilbert : Create a Hilbert matrix.
+
+    Notes
+    -----
+    .. versionadded:: 0.10.0
+
+    Examples
+    --------
+    >>> from scipy.linalg import invhilbert
+    >>> invhilbert(4)
+    array([[   16.,  -120.,   240.,  -140.],
+           [ -120.,  1200., -2700.,  1680.],
+           [  240., -2700.,  6480., -4200.],
+           [ -140.,  1680., -4200.,  2800.]])
+    >>> invhilbert(4, exact=True)
+    array([[   16,  -120,   240,  -140],
+           [ -120,  1200, -2700,  1680],
+           [  240, -2700,  6480, -4200],
+           [ -140,  1680, -4200,  2800]], dtype=int64)
+    >>> invhilbert(16)[7,7]
+    4.2475099528537506e+19
+    >>> invhilbert(16, exact=True)[7,7]
+    42475099528537378560L
+    """
+    if exact:
+        if n > 14:
+            dtype = object
+        else:
+            dtype = np.int64
+    else:
+        dtype = np.float64
+    invh = np.empty((n, n), dtype=dtype)
+    for i in xrange(n):
+        for j in xrange(0, i + 1):
+            s = i + j
+            invh[i, j] = ((-1) ** s * (s + 1) *
+                          comb(n + i, n - j - 1, exact) *
+                          comb(n + j, n - i - 1, exact) *
+                          comb(s, i, exact) ** 2)
+            if i != j:
+                invh[j, i] = invh[i, j]
+    return invh
+
+
+def pascal(n, kind='symmetric', exact=True):
+    """Returns the n x n Pascal matrix.
+
+    The Pascal matrix is a matrix containing the binomial coefficients as
+    its elements.
+
+    Parameters
+    ----------
+    n : int
+        The size of the matrix to create; that is, the result is an n x n
+        matrix.
+    kind : str, optional
+        Must be one of 'symmetric', 'lower', or 'upper'.
+        Default is 'symmetric'.
+    exact : bool, optional
+        If `exact` is True, the result is either an array of type
+        numpy.uint64 (if n <= 35) or an object array of Python long integers.
+        If `exact` is False, the coefficients in the matrix are computed using
+        `scipy.misc.comb` with `exact=False`.  The result will be a floating
+        point array, and the values in the array will not be the exact
+        coefficients, but this version is much faster than `exact=True`.
+
+    Returns
+    -------
+    p : 2-D ndarray
+        The Pascal matrix.
+
+    Notes
+    -----
+    .. versionadded:: 0.11.0
+
+    See http://en.wikipedia.org/wiki/Pascal_matrix for more information
+    about Pascal matrices.
+
+    Examples
+    --------
+    >>> from scipy.linalg import pascal
+    >>> pascal(4)
+    array([[ 1,  1,  1,  1],
+           [ 1,  2,  3,  4],
+           [ 1,  3,  6, 10],
+           [ 1,  4, 10, 20]], dtype=uint64)
+    >>> pascal(4, kind='lower')
+    array([[1, 0, 0, 0],
+           [1, 1, 0, 0],
+           [1, 2, 1, 0],
+           [1, 3, 3, 1]], dtype=uint64)
+    >>> pascal(50)[-1, -1]
+    25477612258980856902730428600L
+    >>> from scipy.misc import comb
+    >>> comb(98, 49, exact=True)
+    25477612258980856902730428600L
+    """
+
+    if kind not in ['symmetric', 'lower', 'upper']:
+        raise ValueError("kind must be 'symmetric', 'lower', or 'upper'")
+
+    if exact:
+        if n > 35:
+            L_n = np.empty((n, n), dtype=object)
+            L_n.fill(0L)
+        else:
+            L_n = np.zeros((n, n), dtype=np.uint64)
+        for i in range(n):
+            for j in range(i + 1):
+                L_n[i, j] = comb(i, j, exact=True)
+    else:
+        L_n = comb(*np.ogrid[:n, :n])
+
+    if kind is 'lower':
+        p = L_n
+    elif kind is 'upper':
+        p = L_n.T
+    else:
+        p = np.dot(L_n, L_n.T)
+
+    return p

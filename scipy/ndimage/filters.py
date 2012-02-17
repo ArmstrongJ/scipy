@@ -34,6 +34,16 @@ import _ni_support
 import _nd_image
 from scipy.misc import doccer
 
+__all__ = ['correlate1d', 'convolve1d', 'gaussian_filter1d', 'gaussian_filter',
+           'prewitt', 'sobel', 'generic_laplace', 'laplace',
+           'gaussian_laplace', 'generic_gradient_magnitude',
+           'gaussian_gradient_magnitude', 'correlate', 'convolve',
+           'uniform_filter1d', 'uniform_filter', 'minimum_filter1d',
+           'maximum_filter1d', 'minimum_filter', 'maximum_filter',
+           'rank_filter', 'median_filter', 'percentile_filter',
+           'generic_filter1d', 'generic_filter']
+
+
 _input_doc = \
 """input : array-like
     input array to filter"""
@@ -437,7 +447,11 @@ def generic_gradient_magnitude(input, derivative, output = None,
                              *extra_arguments, **extra_keywords)
             numpy.multiply(tmp, tmp, tmp)
             output += tmp
-        numpy.sqrt(output, output)
+        # This allows the sqrt to work with a different default casting
+        if numpy.version.short_version > '1.6.1':
+            numpy.sqrt(output, output, casting='unsafe')
+        else:
+            numpy.sqrt(output, output)
     else:
         output[...] = input[...]
     return return_value
@@ -588,7 +602,7 @@ def convolve(input, weights, output = None, mode = 'reflect', cval = 0.0,
     ....    [5, 3, 0, 4],
     ....    [0, 0, 0, 7],
     ....    [9, 3, 0, 0]])
-    >>> b = np.array([[1,1,1],[1,1,0],[1,0,0]])
+    >>> k = np.array([[1,1,1],[1,1,0],[1,0,0]])
     >>> from scipy import ndimage
     >>> ndimage.convolve(a, k, mode='constant', cval=0.0)
     array([[11, 10,  7,  4],
@@ -612,6 +626,7 @@ def convolve(input, weights, output = None, mode = 'reflect', cval = 0.0,
                       [1, 0, 0],
                       [0, 0, 0]])
     >>> k = np.array([[0,1,0],[0,1,0],[0,1,0]])
+    >>> ndimage.convolve(b, k, mode='reflect')
     array([[5, 0, 0],
            [3, 0, 0],
            [1, 0, 0]])
@@ -672,7 +687,7 @@ def uniform_filter1d(input, size, axis = -1, output = None,
     if size < 1:
         raise RuntimeError('incorrect filter size')
     output, return_value = _ni_support._get_output(output, input)
-    if (size // 2 + origin < 0) or (size // 2 + origin > size):
+    if (size // 2 + origin < 0) or (size // 2 + origin >= size):
         raise ValueError('invalid origin')
     mode = _ni_support._extend_mode_to_code(mode)
     _nd_image.uniform_filter1d(input, size, axis, output, mode, cval,
@@ -748,7 +763,7 @@ def minimum_filter1d(input, size, axis = -1, output = None,
     if size < 1:
         raise RuntimeError('incorrect filter size')
     output, return_value = _ni_support._get_output(output, input)
-    if (size // 2 + origin < 0) or (size // 2 + origin > size):
+    if (size // 2 + origin < 0) or (size // 2 + origin >= size):
         raise ValueError('invalid origin')
     mode = _ni_support._extend_mode_to_code(mode)
     _nd_image.min_or_max_filter1d(input, size, axis, output, mode, cval,
@@ -782,7 +797,7 @@ def maximum_filter1d(input, size, axis = -1, output = None,
     if size < 1:
         raise RuntimeError('incorrect filter size')
     output, return_value = _ni_support._get_output(output, input)
-    if (size // 2 + origin < 0) or (size // 2 + origin > size):
+    if (size // 2 + origin < 0) or (size // 2 + origin >= size):
         raise ValueError('invalid origin')
     mode = _ni_support._extend_mode_to_code(mode)
     _nd_image.min_or_max_filter1d(input, size, axis, output, mode, cval,
@@ -839,7 +854,7 @@ def _min_or_max_filter(input, size, footprint, structure, output, mode,
         if len(fshape) != input.ndim:
             raise RuntimeError('footprint array has incorrect shape.')
         for origin, lenf in zip(origins, fshape):
-            if (lenf // 2 + origin < 0) or (lenf // 2 + origin > lenf):
+            if (lenf // 2 + origin < 0) or (lenf // 2 + origin >= lenf):
                 raise ValueError('invalid origin')
         if not footprint.flags.contiguous:
             footprint = footprint.copy()
@@ -908,7 +923,7 @@ def _rank_filter(input, rank, size = None, footprint = None, output = None,
     if len(fshape) != input.ndim:
         raise RuntimeError('filter footprint array has incorrect shape.')
     for origin, lenf in zip(origins, fshape):
-        if (lenf // 2 + origin < 0) or (lenf // 2 + origin > lenf):
+        if (lenf // 2 + origin < 0) or (lenf // 2 + origin >= lenf):
             raise ValueError('invalid origin')
     if not footprint.flags.contiguous:
         footprint = footprint.copy()
@@ -1065,7 +1080,7 @@ def generic_filter1d(input, function, filter_size, axis = -1,
         raise RuntimeError('invalid filter size')
     axis = _ni_support._check_axis(axis, input.ndim)
     if ((filter_size // 2 + origin < 0) or
-        (filter_size // 2 + origin > filter_size)):
+        (filter_size // 2 + origin >= filter_size)):
         raise ValueError('invalid origin')
     mode = _ni_support._extend_mode_to_code(mode)
     _nd_image.generic_filter1d(input, function, filter_size, axis, output,
@@ -1114,7 +1129,7 @@ def generic_filter(input, function, size = None, footprint = None,
     if len(fshape) != input.ndim:
         raise RuntimeError('filter footprint array has incorrect shape.')
     for origin, lenf in zip(origins, fshape):
-        if (lenf // 2 + origin < 0) or (lenf // 2 + origin > lenf):
+        if (lenf // 2 + origin < 0) or (lenf // 2 + origin >= lenf):
             raise ValueError('invalid origin')
     if not footprint.flags.contiguous:
         footprint = footprint.copy()

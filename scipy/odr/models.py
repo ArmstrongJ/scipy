@@ -4,6 +4,9 @@
 import numpy as np
 from scipy.odr.odrpack import Model
 
+__all__ = ['Model', 'exponential', 'multilinear', 'unilinear', 'quadratic',
+           'polynomial']
+
 
 def _lin_fcn(B, x):
     a, b = B[0], B[1:]
@@ -77,7 +80,8 @@ multilinear = Model(_lin_fcn, fjacb=_lin_fjb,
                      'TeXequ':'$y=\\beta_0 + \sum_{i=1}^m \\beta_i x_i$'})
 
 def polynomial(order):
-    """ Factory function for a general polynomial model.
+    """
+    Factory function for a general polynomial model.
 
     Parameters
     ----------
@@ -90,7 +94,9 @@ def polynomial(order):
 
     Returns
     -------
-    model : Model instance
+    polynomial : Model instance
+        Model instance.
+
     """
 
     powers = np.asarray(order)
@@ -156,5 +162,3 @@ quadratic = Model(_quadratic, fjacd=_quad_fjd, fjacb=_quad_fjb,
                   estimate=_quad_est, meta={'name': 'Quadratic',
                   'equ': 'y = B_0*x**2 + B_1*x + B_2',
                   'TeXequ': '$y = \\beta_0 x^2 + \\beta_1 x + \\beta_2'})
-
-#### EOF #######################################################################

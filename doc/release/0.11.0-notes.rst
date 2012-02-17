@@ -1,0 +1,68 @@
+==========================
+SciPy 0.11.0 Release Notes
+==========================
+
+.. note:: Scipy 0.11.0 is not released yet!
+
+.. contents::
+
+SciPy 0.11.0 is the culmination of XXX months of hard work. It contains
+many new features, numerous bug-fixes, improved test coverage and
+better documentation.  There have been a number of deprecations and
+API changes in this release, which are documented below.  All users
+are encouraged to upgrade to this release, as there are a large number
+of bug-fixes and optimizations.  Moreover, our development attention
+will now shift to bug-fix releases on the 0.11.x branch, and on adding
+new features on the development trunk.
+
+This release requires Python 2.4-2.7 or 3.1- and NumPy 1.X.X or greater.
+
+
+New features
+============
+
+Unified interface to minimizers of multivariate functions (``scipy.optimize``)
+------------------------------------------------------------------------------
+
+A new function ``scipy.optimize.minimize`` was added to provide a common
+interface to minimizers of multivariate functions (unconstrained: `fmin`,
+`fmin_powell`, `fmin_cg`, `fmin_ncg`, `fmin_bfgs` and `anneal` or
+constrained: `fmin_l_bfgs_b`, `fmin_tnc`, `fmin_cobyla` and `fmin_slsqp`).
+This allows for easier comparing and switching between solvers.
+
+
+Constructing sparse matrices
+----------------------------
+
+Two new functions, ``scipy.sparse.diags`` and ``scipy.sparse.block_diag``, were
+added to easily construct diagonal and block-diagonal sparse matrices
+respectively.
+
+
+Pascal matrix function
+----------------------
+
+A function for creating Pascal matrices, ``scipy.linalg.pascal``, was added.
+
+
+``scipy.misc.logsumexp``
+------------------------
+
+``misc.logsumexp`` now takes an optional ``axis`` keyword argument.
+
+
+Deprecated features
+===================
+
+
+Backwards incompatible changes
+==============================
+ 
+
+Other changes
+=============
+
+
+Authors
+=======
+

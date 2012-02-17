@@ -515,10 +515,10 @@ def hmean(a, axis=0, dtype=None):
             size = a.count(axis)
         else:
             if axis == None:
-               a=a.ravel()
-               size = a.shape[0]
+                a=a.ravel()
+                size = a.shape[0]
             else:
-               size = a.shape[axis]
+                size = a.shape[axis]
         return size / np.sum(1.0/a, axis=axis, dtype=dtype)
     else:
         raise ValueError("Harmonic mean only defined if all elements greater than zero")
@@ -1140,26 +1140,27 @@ def skewtest(a, axis=0):
 
     Notes
     -----
-    The sample size should be at least 8.
+    The sample size must be at least 8.
 
     """
     a, axis = _chk_asarray(a, axis)
     if axis is None:
         a = np.ravel(a)
         axis = 0
-    b2 = skew(a,axis)
+    b2 = skew(a, axis)
     n = float(a.shape[axis])
     if n < 8:
-        warnings.warn(
-            "skewtest only valid for n>=8 ... continuing anyway, n=%i" %
-            int(n))
-    y = b2 * math.sqrt(((n+1)*(n+3)) / (6.0*(n-2)) )
-    beta2 = ( 3.0*(n*n+27*n-70)*(n+1)*(n+3) ) / ( (n-2.0)*(n+5)*(n+7)*(n+9) )
-    W2 = -1 + math.sqrt(2*(beta2-1))
-    delta = 1/math.sqrt(0.5*math.log(W2))
-    alpha = math.sqrt(2.0/(W2-1))
-    y = np.where(y==0, 1, y)
-    Z = delta*np.log(y/alpha + np.sqrt((y/alpha)**2+1))
+        raise ValueError(
+            "skewtest is not valid with less than 8 samples; %i samples"
+            " were given." % int(n))
+    y = b2 * math.sqrt(((n + 1) * (n + 3)) / (6.0 * (n - 2)))
+    beta2 = (3.0 * (n * n + 27 * n - 70) * (n + 1) * (n + 3) /
+            ((n - 2.0) * (n + 5) * (n + 7) * (n + 9)))
+    W2 = -1 + math.sqrt(2 * (beta2 - 1))
+    delta = 1 / math.sqrt(0.5 * math.log(W2))
+    alpha = math.sqrt(2.0 / (W2 - 1))
+    y = np.where(y == 0, 1, y)
+    Z = delta * np.log(y / alpha + np.sqrt((y / alpha) ** 2 + 1))
     return Z, 2 * distributions.norm.sf(np.abs(Z))
 
 def kurtosistest(a, axis=0):
@@ -1192,6 +1193,10 @@ def kurtosistest(a, axis=0):
     """
     a, axis = _chk_asarray(a, axis)
     n = float(a.shape[axis])
+    if n < 5:
+        raise ValueError(
+            "kurtosistest requires at least 5 observations; %i observations"
+            " were given." % int(n))
     if n < 20:
         warnings.warn(
             "kurtosistest only valid for n>=20 ... continuing anyway, n=%i" %
@@ -1218,7 +1223,7 @@ def kurtosistest(a, axis=0):
 
 def normaltest(a, axis=0):
     """
-    Tests whether a sample differs from a normal distribution
+    Tests whether a sample differs from a normal distribution.
 
     This function tests the null hypothesis that a sample comes
     from a normal distribution.  It is based on D'Agostino and
@@ -1228,22 +1233,27 @@ def normaltest(a, axis=0):
 
     Parameters
     ----------
-    a : array
+    a : array_like
+        The array containing the data to be tested.
     axis : int or None
+        If None, the array is treated as a single data set, regardless of
+        its shape.  Otherwise, each 1-d array along axis `axis` is tested.
 
     Returns
     -------
-    p-value : float
-       A 2-sided chi squared probability for the hypothesis test
+    k2 : float or array
+        `s^2 + k^2`, where `s` is the z-score returned by `skewtest` and
+        `k` is the z-score returned by `kurtosistest`.
+    p-value : float or array
+       A 2-sided chi squared probability for the hypothesis test.
 
     References
     ----------
-    .. [1] D'Agostino, R. B. and Pearson, E. S. (1971), "An Omnibus Test of
-           Normality for Moderate and Large Sample Size,"
-           Biometrika, 58, 341-348
+    .. [1] D'Agostino, R. B. (1971), "An omnibus test of normality for
+           moderate and large sample size," Biometrika, 58, 341-348
 
-    .. [2] D'Agostino, R. B. and Pearson, E. S. (1973), "Testing for
-           departures from Normality," Biometrika, 60, 613-622
+    .. [2] D'Agostino, R. and Pearson, E. S. (1973), "Testing for
+           departures from normality," Biometrika, 60, 613-622
 
     """
     a, axis = _chk_asarray(a, axis)
@@ -1820,19 +1830,18 @@ def zscore(a, axis=0, ddof=0):
                       [ 0.5918,  0.6948,  0.904 ,  0.3721],
                       [ 0.0921,  0.2481,  0.1188,  0.1366]])
     >>> stats.zscore(b, axis=1, ddof=1)
-    array([[-1.1649, -1.4319, -0.8554, -1.0189],
-           [-0.8661, -1.5035, -0.9737, -0.6154],
-           [-0.888 , -1.3817, -0.5461, -1.1156],
-           [-2.3043, -2.2014, -1.9921, -2.5241],
-           [-2.0773, -1.9212, -2.0506, -2.0328]])
-
+    array([[-0.19264823, -1.28415119,  1.07259584,  0.40420358],
+           [ 0.33048416, -1.37380874,  0.04251374,  1.00081084],
+           [ 0.26796377, -1.12598418,  1.23283094, -0.37481053],
+           [-0.22095197,  0.24468594,  1.19042819, -1.21416216],
+           [-0.82780366,  1.4457416 , -0.43867764, -0.1792603 ]])
     """
     a = np.asanyarray(a)
     mns = a.mean(axis=axis)
     sstd = a.std(axis=axis, ddof=ddof)
     if axis and mns.ndim < a.ndim:
-        return ((a - np.expand_dims(mns, axis=axis) /
-                 np.expand_dims(sstd,axis=axis)))
+        return ((a - np.expand_dims(mns, axis=axis)) /
+                 np.expand_dims(sstd,axis=axis))
     else:
         return (a - mns) / sstd
 
@@ -1871,17 +1880,21 @@ def zmap(scores, compare, axis=0, ddof=0):
     matrices and masked arrays (it uses `asanyarray` instead of `asarray`
     for parameters).
 
+    Examples
+    --------
+    >>> a = [0.5, 2.0, 2.5, 3]
+    >>> b = [0, 1, 2, 3, 4]
+    >>> zmap(a, b)
+    array([-1.06066017,  0.        ,  0.35355339,  0.70710678])
     """
     scores, compare = map(np.asanyarray, [scores, compare])
     mns = compare.mean(axis=axis)
     sstd = compare.std(axis=axis, ddof=ddof)
     if axis and mns.ndim < compare.ndim:
-        return ((scores - np.expand_dims(mns, axis=axis) /
-                 np.expand_dims(sstd,axis=axis)))
+        return ((scores - np.expand_dims(mns, axis=axis)) /
+                 np.expand_dims(sstd,axis=axis))
     else:
         return (scores - mns) / sstd
-
-
 
 
 #####################################
@@ -2142,24 +2155,23 @@ def f_oneway(*args):
     .. [2] Heiman, G.W.  Research Methods in Statistics. 2002.
 
     """
-    na = len(args)            # ANOVA on 'na' groups, each in it's own array
-    tmp = map(np.array,args)
+    args = map(np.asarray, args) # convert to an numpy array
+    na = len(args)              # ANOVA on 'na' groups, each in it's own array
     alldata = np.concatenate(args)
     bign = len(alldata)
-    sstot = ss(alldata)-(square_of_sums(alldata)/float(bign))
+    sstot = ss(alldata) - (square_of_sums(alldata) / float(bign))
     ssbn = 0
     for a in args:
-        ssbn = ssbn + square_of_sums(array(a))/float(len(a))
-    ssbn = ssbn - (square_of_sums(alldata)/float(bign))
-    sswn = sstot-ssbn
-    dfbn = na-1
+        ssbn += square_of_sums(a) / float(len(a))
+    ssbn -= (square_of_sums(alldata) / float(bign))
+    sswn = sstot - ssbn
+    dfbn = na - 1
     dfwn = bign - na
-    msb = ssbn/float(dfbn)
-    msw = sswn/float(dfwn)
-    f = msb/msw
-    prob = fprob(dfbn,dfwn,f)
+    msb = ssbn / float(dfbn)
+    msw = sswn / float(dfwn)
+    f = msb / msw
+    prob = fprob(dfbn, dfwn, f)
     return f, prob
-
 
 
 def pearsonr(x, y):
@@ -2216,20 +2228,30 @@ def pearsonr(x, y):
     return r, prob
 
 
-def fisher_exact(table) :
+def fisher_exact(table, alternative='two-sided'):
     """Performs a Fisher exact test on a 2x2 contingency table.
 
     Parameters
     ----------
     table : array_like of ints
-        A 2x2 contingency table.
+        A 2x2 contingency table.  Elements should be non-negative integers.
+    alternative : {'two-sided', 'less', 'greater'}, optional
+        Which alternative hypothesis to the null hypothesis the test uses.
+        Default is 'two-sided'.
 
     Returns
     -------
     oddsratio : float
         This is prior odds ratio and not a posterior estimate.
     p_value : float
-        P-value for 2-sided hypothesis of independence.
+        P-value, the probability of obtaining a distribution at least as
+        extreme as the one that was actually observed, assuming that the
+        null hypothesis is true.
+
+    See Also
+    --------
+    chi2_contingency : Chi-square test of independence of variables in a
+        contingency table.
 
     Notes
     -----
@@ -2238,15 +2260,44 @@ def fisher_exact(table) :
     Likelihood Estimate", while R uses the "conditional Maximum Likelihood
     Estimate".
 
+    For tables with large numbers the (inexact) chi-square test implemented
+    in the function `chi2_contingency` can also be used.
+
     Examples
     --------
-    >>> fisher_exact([[100, 2], [1000, 5]])
-    (0.25, 0.13007593634330314)
+    Say we spend a few days counting whales and sharks in the Atlantic and
+    Indian oceans. In the Atlantic ocean we find 8 whales and 1 shark, in the
+    Indian ocean 2 whales and 5 sharks. Then our contingency table is::
+
+                Atlantic  Indian
+        whales     8        2
+        sharks     1        5
+
+    We use this table to find the p-value:
+
+    >>> oddsratio, pvalue = stats.fisher_exact([[8, 2], [1, 5]])
+    >>> pvalue
+    0.0349...
+
+    The probability that we would observe this or an even more imbalanced ratio
+    by chance is about 3.5%.  A commonly used significance level is 5%, if we
+    adopt that we can therefore conclude that our observed imbalance is
+    statistically significant; whales prefer the Atlantic while sharks prefer
+    the Indian ocean.
+
     """
     hypergeom = distributions.hypergeom
     c = np.asarray(table, dtype=np.int64)  # int32 is not enough for the algorithm
     if not c.shape == (2, 2):
         raise ValueError("The input `table` must be of shape (2, 2).")
+
+    if np.any(c < 0):
+        raise ValueError("All values in `table` must be nonnegative.")
+
+    if 0 in c.sum(axis=0) or 0 in c.sum(axis=1):
+        # If both values in a row or column are zero, the p-value is 1 and
+        # the odds ratio is NaN.
+        return np.nan, 1.0
 
     if c[1,0] > 0 and c[0,1] > 0:
         oddsratio = c[0,0] * c[1,1] / float(c[1,0] * c[0,1])
@@ -2257,86 +2308,82 @@ def fisher_exact(table) :
     n2 = c[1,0] + c[1,1]
     n  = c[0,0] + c[1,0]
 
-    mode = int(float((n + 1) * (n1 + 1)) / (n1 + n2 + 2))
-    pexact = hypergeom.pmf(c[0,0], n1 + n2, n1, n)
-    pmode = hypergeom.pmf(mode, n1 + n2, n1, n)
-
-    epsilon = 1 - 1e-4
-    if float(np.abs(pexact - pmode)) / np.abs(np.max(pexact, pmode)) <= 1 - epsilon:
-        return oddsratio, 1
-
-    elif c[0,0] < mode:
-        plower = hypergeom.cdf(c[0,0], n1 + n2, n1, n)
-
-        if hypergeom.pmf(n, n1 + n2, n1, n) > pexact / epsilon:
-            return oddsratio, plower
-
-        # Binary search for where to begin upper half.
-        minval = mode
-        maxval = n
+    def binary_search(n, n1, n2, side):
+        """Binary search for where to begin lower/upper halves in two-sided
+        test.
+        """
+        if side == "upper":
+            minval = mode
+            maxval = n
+        else:
+            minval = 0
+            maxval = mode
         guess = -1
         while maxval - minval > 1:
             if maxval == minval + 1 and guess == minval:
                 guess = maxval
             else:
                 guess = (maxval + minval) // 2
-
             pguess = hypergeom.pmf(guess, n1 + n2, n1, n)
-            if pguess <= pexact and hypergeom.pmf(guess - 1, n1 + n2, n1, n) > pexact:
+            if side == "upper":
+                ng = guess - 1
+            else:
+                ng = guess + 1
+            if pguess <= pexact and hypergeom.pmf(ng, n1 + n2, n1, n) > pexact:
                 break
             elif pguess < pexact:
                 maxval = guess
             else:
                 minval = guess
-
         if guess == -1:
             guess = minval
+        if side == "upper":
+            while guess > 0 and hypergeom.pmf(guess, n1 + n2, n1, n) < pexact * epsilon:
+                guess -= 1
+            while hypergeom.pmf(guess, n1 + n2, n1, n) > pexact / epsilon:
+                guess += 1
+        else:
+            while hypergeom.pmf(guess, n1 + n2, n1, n) < pexact * epsilon:
+                guess += 1
+            while guess > 0 and hypergeom.pmf(guess, n1 + n2, n1, n) > pexact / epsilon:
+                guess -= 1
+        return guess
 
-        while guess > 0 and hypergeom.pmf(guess, n1 + n2, n1, n) < pexact * epsilon:
-            guess -= 1
+    if alternative == 'less':
+        pvalue = hypergeom.cdf(c[0,0], n1 + n2, n1, n)
+    elif alternative == 'greater':
+        # Same formula as the 'less' case, but with the second column.
+        pvalue = hypergeom.cdf(c[0,1], n1 + n2, n1, c[0,1] + c[1,1])
+    elif alternative == 'two-sided':
+        mode = int(float((n + 1) * (n1 + 1)) / (n1 + n2 + 2))
+        pexact = hypergeom.pmf(c[0,0], n1 + n2, n1, n)
+        pmode = hypergeom.pmf(mode, n1 + n2, n1, n)
 
-        while hypergeom.pmf(guess, n1 + n2, n1, n) > pexact / epsilon:
-            guess += 1
+        epsilon = 1 - 1e-4
+        if float(np.abs(pexact - pmode)) / np.abs(np.max(pexact, pmode)) <= 1 - epsilon:
+            return oddsratio, 1.
 
-        p = plower + hypergeom.sf(guess - 1, n1 + n2, n1, n)
-        if p > 1.0:
-            p = 1.0
-        return oddsratio, p
+        elif c[0,0] < mode:
+            plower = hypergeom.cdf(c[0,0], n1 + n2, n1, n)
+            if hypergeom.pmf(n, n1 + n2, n1, n) > pexact / epsilon:
+                return oddsratio, plower
+
+            guess = binary_search(n, n1, n2, "upper")
+            pvalue = plower + hypergeom.sf(guess - 1, n1 + n2, n1, n)
+        else:
+            pupper = hypergeom.sf(c[0,0] - 1, n1 + n2, n1, n)
+            if hypergeom.pmf(0, n1 + n2, n1, n) > pexact / epsilon:
+                return oddsratio, pupper
+
+            guess = binary_search(n, n1, n2, "lower")
+            pvalue = pupper + hypergeom.cdf(guess, n1 + n2, n1, n)
     else:
-        pupper = hypergeom.sf(c[0,0] - 1, n1 + n2, n1, n)
-        if hypergeom.pmf(0, n1 + n2, n1, n) > pexact / epsilon:
-            return oddsratio, pupper
+        msg = "`alternative` should be one of {'two-sided', 'less', 'greater'}"
+        raise ValueError(msg)
 
-        # Binary search for where to begin lower half.
-        minval = 0
-        maxval = mode
-        guess = -1
-        while maxval - minval > 1:
-            if maxval == minval + 1 and guess == minval:
-                guess = maxval
-            else:
-                guess = (maxval + minval) // 2
-            pguess = hypergeom.pmf(guess, n1 + n2, n1, n)
-            if pguess <= pexact and hypergeom.pmf(guess + 1, n1 + n2, n1, n) > pexact:
-                break
-            elif pguess <= pexact:
-                minval = guess
-            else:
-                maxval = guess
-
-        if guess == -1:
-            guess = minval
-
-        while hypergeom.pmf(guess, n1 + n2, n1, n) < pexact * epsilon:
-            guess += 1
-
-        while guess > 0 and hypergeom.pmf(guess, n1 + n2, n1, n) > pexact / epsilon:
-            guess -= 1
-
-        p = pupper + hypergeom.cdf(guess, n1 + n2, n1, n)
-        if p > 1.0:
-            p = 1.0
-        return oddsratio, p
+    if pvalue > 1.0:
+        pvalue = 1.0
+    return oddsratio, pvalue
 
 
 def spearmanr(a, b=None, axis=0):
@@ -2563,12 +2610,6 @@ def kendalltau(x, y, initial_lexsort=True):
        The two-sided p-value for a hypothesis test whose null hypothesis is
        an absence of association, tau = 0.
 
-    References
-    ----------
-    W.R. Knight, "A Computer Method for Calculating Kendall's Tau with
-    Ungrouped Data", Journal of the American Statistical Association, Vol. 61,
-    No. 314, Part 1, pp. 436-439, 1966.
-
     Notes
     -----
     The definition of Kendall's tau that is used is::
@@ -2577,8 +2618,14 @@ def kendalltau(x, y, initial_lexsort=True):
 
     where P is the number of concordant pairs, Q the number of discordant
     pairs, T the number of ties only in `x`, and U the number of ties only in
-    `y`.  If a tie occurs for the same pair in both `x` and `y`, it is not added
-    to either T or U.
+    `y`.  If a tie occurs for the same pair in both `x` and `y`, it is not
+    added to either T or U.
+
+    References
+    ----------
+    W.R. Knight, "A Computer Method for Calculating Kendall's Tau with
+    Ungrouped Data", Journal of the American Statistical Association, Vol. 61,
+    No. 314, Part 1, pp. 436-439, 1966.
 
     Examples
     --------
@@ -2594,7 +2641,7 @@ def kendalltau(x, y, initial_lexsort=True):
 
     x = np.asarray(x).ravel()
     y = np.asarray(y).ravel()
-    n = len(x)
+    n = np.int64(len(x))
     temp = range(n) # support structure used by mergesort
     # this closure recursively sorts sections of perm[] by comparing
     # elements of y[perm[]] using temp[] as support
@@ -2677,8 +2724,9 @@ def kendalltau(x, y, initial_lexsort=True):
     if tot == u and tot == v:
         return 1    # Special case for all ties in both ranks
 
-    tau = ((tot - (v + u - t)) - 2.0 * exchanges) / \
-                    np.sqrt((tot - u) * (tot - v))
+    # Prevent overflow; equal to np.sqrt((tot - u) * (tot - v))
+    denom = np.exp(0.5 * (np.log(tot - u) + np.log(tot - v)))
+    tau = ((tot - (v + u - t)) - 2.0 * exchanges) / denom
 
     # what follows reproduces the ending of Gary Strangman's original
     # stats.kendalltau() in SciPy
@@ -3499,30 +3547,31 @@ def kruskal(*args):
     .. [1] http://en.wikipedia.org/wiki/Kruskal-Wallis_one-way_analysis_of_variance
 
     """
-    if len(args) < 2:
+    args = map(np.asarray, args) # convert to a numpy array
+    na = len(args)               # Kruskal-Wallis on 'na' groups, each in it's own array
+    if na < 2:
         raise ValueError("Need at least two groups in stats.kruskal()")
-    n = map(len,args)
-    all = []
-    for i in range(len(args)):
-        all.extend(args[i].tolist())
-    ranked = list(rankdata(all))
-    T = tiecorrect(ranked)
-    args = list(args)
-    for i in range(len(args)):
-        args[i] = ranked[0:n[i]]
-        del ranked[0:n[i]]
-    rsums = []
-    for i in range(len(args)):
-        rsums.append(np.sum(args[i],axis=0)**2)
-        rsums[i] = rsums[i] / float(n[i])
-    ssbn = np.sum(rsums,axis=0)
-    totaln = np.sum(n,axis=0)
-    h = 12.0 / (totaln*(totaln+1)) * ssbn - 3*(totaln+1)
-    df = len(args) - 1
+    n = np.asarray(map(len, args))
+    
+    alldata = np.concatenate(args)
+
+    ranked = rankdata(alldata)  # Rank the data
+    T = tiecorrect(ranked)      # Correct for ties
     if T == 0:
         raise ValueError('All numbers are identical in kruskal')
+    
+    # Compute sum^2/n for each group and sum
+    j = np.insert(np.cumsum(n), 0, 0)
+    ssbn = 0
+    for i in range(na):
+        ssbn += square_of_sums(ranked[j[i]:j[i+1]]) / float(n[i]) 
+        
+    totaln = np.sum(n)
+    h = 12.0 / (totaln * (totaln + 1)) * ssbn - 3 * (totaln + 1)
+    df = na - 1
     h = h / float(T)
-    return h, chisqprob(h,df)
+    return h, chisqprob(h, df)
+
 
 
 def friedmanchisquare(*args):

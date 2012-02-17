@@ -1,4 +1,7 @@
 r"""
+.. module:: scipy.optimize.nonlin
+
+=================
 Nonlinear solvers
 =================
 
@@ -9,7 +12,7 @@ solvers.  These solvers find *x* for which *F(x) = 0*. Both *x*
 and *F* can be multidimensional.
 
 Routines
---------
+========
 
 Large-scale nonlinear solvers:
 
@@ -103,7 +106,7 @@ The solution can be found using the `newton_krylov` solver:
    plt.pcolor(x, y, sol)
    plt.colorbar()
    plt.show()
-   
+
 """
 # Copyright (C) 2009, Pauli Virtanen <pav@iki.fi>
 # Distributed under the same license as Scipy.
@@ -114,15 +117,13 @@ from scipy.linalg import norm, solve, inv, qr, svd, lstsq, LinAlgError
 from numpy import asarray, dot, vdot
 import scipy.sparse.linalg
 import scipy.sparse
-import scipy.lib.blas as blas
+from scipy.linalg import get_blas_funcs
 import inspect
 from linesearch import scalar_search_wolfe1, scalar_search_armijo
 
 __all__ = [
     'broyden1', 'broyden2', 'anderson', 'linearmixing',
-    'diagbroyden', 'excitingmixing', 'newton_krylov',
-    # Deprecated functions:
-    'broyden_generalized', 'anderson2', 'broyden3']
+    'diagbroyden', 'excitingmixing', 'newton_krylov']
 
 #------------------------------------------------------------------------------
 # Utility functions
@@ -401,7 +402,7 @@ class TerminationCondition(object):
             x_tol = np.inf
         if x_rtol is None:
             x_rtol = np.inf
-        
+
         self.x_tol = x_tol
         self.x_rtol = x_rtol
         self.f_tol = f_tol
@@ -412,7 +413,7 @@ class TerminationCondition(object):
 
         self.f0_norm = None
         self.iteration = 0
-        
+
     def check(self, f, x, dx):
         self.iteration += 1
         f_norm = self.norm(f)
@@ -421,7 +422,7 @@ class TerminationCondition(object):
 
         if self.f0_norm is None:
             self.f0_norm = f_norm
-            
+
         if f_norm == 0:
             return True
 
@@ -464,7 +465,7 @@ class Jacobian(object):
     todense : optional
         Form the dense Jacobian matrix. Necessary for dense trust region
         algorithms, and useful for testing.
-        
+
     Attributes
     ----------
     shape
@@ -656,8 +657,8 @@ class LowRankMatrix(object):
 
     @staticmethod
     def _matvec(v, alpha, cs, ds):
-        axpy, scal, dotc = blas.get_blas_funcs(['axpy', 'scal', 'dotc'],
-                                               cs[:1] + [v])
+        axpy, scal, dotc = get_blas_funcs(['axpy', 'scal', 'dotc'],
+                                          cs[:1] + [v])
         w = alpha * v
         for c, d in zip(cs, ds):
             a = dotc(d, v)
@@ -672,7 +673,7 @@ class LowRankMatrix(object):
 
         # (B + C D^H)^-1 = B^-1 - B^-1 C (I + D^H B^-1 C)^-1 D^H B^-1
 
-        axpy, dotc = blas.get_blas_funcs(['axpy', 'dotc'], cs[:1] + [v])
+        axpy, dotc = get_blas_funcs(['axpy', 'dotc'], cs[:1] + [v])
 
         c0 = cs[0]
         A = alpha * np.identity(len(cs), dtype=c0.dtype)
@@ -790,7 +791,7 @@ class LowRankMatrix(object):
            \"A limited memory Broyden method to solve high-dimensional
            systems of nonlinear equations\". Mathematisch Instituut,
            Universiteit Leiden, The Netherlands (2003).
-           
+
            http://www.math.leidenuniv.nl/scripties/Rotten.pdf
 
         """
@@ -889,7 +890,7 @@ class BroydenFirst(GenericBroyden):
         GenericBroyden.__init__(self)
         self.alpha = alpha
         self.Gm = None
-        
+
         if max_rank is None:
             max_rank = np.inf
         self.max_rank = max_rank
@@ -1097,7 +1098,7 @@ class Anderson(GenericBroyden):
     def _update(self, x, f, dx, df, dx_norm, df_norm):
         if self.M == 0:
             return
-        
+
         self.dx.append(dx)
         self.df.append(df)
 
@@ -1126,7 +1127,7 @@ class Anderson(GenericBroyden):
 class DiagBroyden(GenericBroyden):
     """
     Find a root of a function, using diagonal Broyden Jacobian approximation.
-    
+
     The Jacobian approximation is derived from previous iterations, by
     retaining only the diagonal of Broyden matrices.
 
@@ -1447,8 +1448,8 @@ def _nonlin_wrapper(name, jac):
     # Construct the wrapper function so that it's keyword arguments
     # are visible in pydoc.help etc.
     wrapper = """
-def %(name)s(F, xin, iter=None %(kw)s, verbose=False, maxiter=None, 
-             f_tol=None, f_rtol=None, x_tol=None, x_rtol=None, 
+def %(name)s(F, xin, iter=None %(kw)s, verbose=False, maxiter=None,
+             f_tol=None, f_rtol=None, x_tol=None, x_rtol=None,
              tol_norm=None, line_search='armijo', callback=None, **kw):
     jac = %(jac)s(%(kwkw)s **kw)
     return nonlin_solve(F, xin, jac, iter, verbose, maxiter,
@@ -1474,36 +1475,3 @@ diagbroyden = _nonlin_wrapper('diagbroyden', DiagBroyden)
 excitingmixing = _nonlin_wrapper('excitingmixing', ExcitingMixing)
 newton_krylov = _nonlin_wrapper('newton_krylov', KrylovJacobian)
 
-
-# Deprecated functions
-
-@np.deprecate
-def broyden_generalized(*a, **kw):
-    """Use *anderson(..., w0=0)* instead"""
-    kw.setdefault('w0', 0)
-    return anderson(*a, **kw)
-
-@np.deprecate
-def broyden1_modified(*a, **kw):
-    """Use `broyden1` instead"""
-    return broyden1(*a, **kw)
-
-@np.deprecate
-def broyden_modified(*a, **kw):
-    """Use `anderson` instead"""
-    return anderson(*a, **kw)
-
-@np.deprecate
-def anderson2(*a, **kw):
-    """Use `anderson` instead"""
-    return anderson(*a, **kw)
-
-@np.deprecate
-def broyden3(*a, **kw):
-    """Use `broyden2` instead"""
-    return broyden2(*a, **kw)
-
-@np.deprecate
-def vackar(*a, **kw):
-    """Use `diagbroyden` instead"""
-    return diagbroyden(*a, **kw)

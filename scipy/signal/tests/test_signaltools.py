@@ -3,10 +3,11 @@ from decimal import Decimal
 
 from numpy.testing import TestCase, run_module_suite, assert_equal, \
     assert_almost_equal, assert_array_equal, assert_array_almost_equal, \
-    assert_, dec
+    assert_raises, assert_
 
 import scipy.signal as signal
-from scipy.signal import lfilter, correlate, convolve, convolve2d, hilbert
+from scipy.signal import correlate, convolve, convolve2d, \
+     hilbert, hilbert2, lfilter, lfilter_zi, filtfilt, butter, tf2zpk
 
 
 from numpy import array, arange
@@ -378,6 +379,19 @@ class TestLinearFilterComplexxxiExtended28(_TestLinearFilter):
 class TestLinearFilterDecimal(_TestLinearFilter):
     dt = np.dtype(Decimal)
 
+class TestLinearFilterObject(_TestLinearFilter):
+    dt = np.object_
+
+
+def test_lfilter_bad_object():
+    """lfilter: object arrays with non-numeric objects raise TypeError.
+    
+    Regression test for ticket #1452.
+    """
+    assert_raises(TypeError, lfilter, [1.0], [1.0], [1.0, None, 2.0])
+    assert_raises(TypeError, lfilter, [1.0], [None], [1.0, 2.0, 3.0])
+    assert_raises(TypeError, lfilter, [None], [1.0], [1.0, 2.0, 3.0])
+
 
 class _TestCorrelateReal(TestCase):
 
@@ -533,18 +547,76 @@ for datatype in [np.csingle, np.cdouble, np.clongdouble]:
     globals()[cls.__name__] = cls
 
 
-class TestFiltFilt:
+class TestLFilterZI(TestCase):
+
     def test_basic(self):
-        out = signal.filtfilt([1,2,3], [1,2,3], np.arange(12))
+        a = np.array([1.0, -1.0, 0.5])
+        b = np.array([1.0,  0.0, 2.0])
+        zi_expected = np.array([5.0, -1.0])
+        zi = lfilter_zi(b, a)
+        assert_array_almost_equal(zi, zi_expected)
+
+
+class TestFiltFilt(TestCase):
+
+    def test_basic(self):
+        out = signal.filtfilt([1, 2, 3], [1, 2, 3], np.arange(12))
         assert_equal(out, arange(12))
 
+    def test_sine(self):
+        rate = 2000
+        t = np.linspace(0, 1.0, rate + 1)
+        # A signal with low frequency and a high frequency.
+        xlow = np.sin(5 * 2 * np.pi * t)
+        xhigh = np.sin(250 * 2 * np.pi * t)
+        x = xlow + xhigh
+
+        b, a = butter(8, 0.125)
+        z, p, k = tf2zpk(b, a)
+        # r is the magnitude of the largest pole.
+        r = np.abs(p).max()
+        eps = 1e-5
+        # n estimates the number of steps for the
+        # transient to decay by a factor of eps.
+        n = int(np.ceil(np.log(eps) / np.log(r)))
+
+        # High order lowpass filter...
+        y = filtfilt(b, a, x, padlen=n)
+        # Result should be just xlow.
+        err = np.abs(y - xlow).max()
+        assert_(err < 1e-4)
+
+        # A 2D case.
+        x2d = np.vstack([xlow, xlow + xhigh])
+        y2d = filtfilt(b, a, x2d, padlen=n, axis=1)
+        assert_equal(y2d.shape, x2d.shape)
+        err = np.abs(y2d - xlow).max()
+        assert_(err < 1e-4)
+
+
 class TestDecimate:
+
     def test_basic(self):
         x = np.arange(6)
         assert_array_equal(signal.decimate(x, 2, n=1).round(), x[::2])
 
+    def test_shape(self):
+        """Regression test for ticket #1480."""
+        z = np.zeros((10, 10))
+        d0 = signal.decimate(z, 2, axis=0)
+        assert_equal(d0.shape, (5, 10))
+        d1 = signal.decimate(z, 2, axis=1)
+        assert_equal(d1.shape, (10, 5))
 
-class TestHilbert:
+
+class TestHilbert(object):
+
+    def test_bad_args(self):
+        x = np.array([1.0+0.0j])
+        assert_raises(ValueError, hilbert, x)
+        x = np.arange(8.0)
+        assert_raises(ValueError, hilbert, x, N=0)
+
     def test_hilbert_theoretical(self):
         #test cases by Ariel Rokem
         decimal = 14
@@ -619,6 +691,25 @@ class TestHilbert:
                              8.881784197001253e-17-0.751023775297729j,
                              9.444121133484362e-17-0.79252210110103j ])
         yield assert_almost_equal, aan[0], a0hilb, 14, 'N regression'
+
+
+class TestHilbert2(object):
+
+    def test_bad_args(self):
+
+        # x must be real.
+        x = np.array([[1.0 + 0.0j]])
+        assert_raises(ValueError, hilbert2, x)
+
+        # x must be rank 2.
+        x = np.arange(24).reshape(2, 3, 4)
+        assert_raises(ValueError, hilbert2, x)
+
+        # Bad value for N.
+        x = np.arange(16).reshape(4, 4)
+        assert_raises(ValueError, hilbert2, x, N=0)
+        assert_raises(ValueError, hilbert2, x, N=(2,0))
+        assert_raises(ValueError, hilbert2, x, N=(2,))
 
 
 if __name__ == "__main__":

@@ -9,7 +9,8 @@
 
 from numpy.testing import TestCase, rand, assert_, assert_equal, \
     assert_almost_equal, assert_array_almost_equal, assert_array_equal, \
-    assert_approx_equal, assert_raises, run_module_suite
+    assert_approx_equal, assert_raises, run_module_suite, \
+    assert_allclose, dec
 from numpy import array, arange, zeros, ravel, float32, float64, power
 import numpy as np
 import sys
@@ -338,79 +339,131 @@ class TestCorrPearsonr(TestCase):
         assert_equal(r, -1.0)
         assert_equal(prob, 0.0)
 
-def test_fisher_exact():
+class TestFisherExact(TestCase):
     """Some tests to show that fisher_exact() works correctly.
 
-    Testing the hypergeometric survival function against R's, showing that one
-    of them (probably Scipy's) is slightly defective (see the test with
-    significant=1).  This is probably because, in distributions.py, Scipy
-    uses 1.0 - cdf as the sf instead of calculating the sf more directly
-    for improved numerical accuracy.
+    Note that in SciPy 0.9.0 this was not working well for large numbers due to
+    inaccuracy of the hypergeom distribution (see #1218). Fixed now.
 
     Also note that R and Scipy have different argument formats for their
-    hypergeometric distrib functions.
+    hypergeometric distribution functions.
 
     R:
     > phyper(18999, 99000, 110000, 39000, lower.tail = FALSE)
     [1] 1.701815e-09
     """
-    fisher_exact = stats.fisher_exact
+    def test_basic(self):
+        fisher_exact = stats.fisher_exact
 
-    res = fisher_exact([[18000, 80000], [20000, 90000]])[1]
-    assert_approx_equal(res, 0.2751, significant=4)
-    res = fisher_exact([[14500, 20000], [30000, 40000]])[1]
-    assert_approx_equal(res, 0.01106, significant=4)
-    res = fisher_exact([[100, 2], [1000, 5]])[1]
-    assert_approx_equal(res, 0.1301, significant=4)
-    res = fisher_exact([[2, 7], [8, 2]])[1]
-    assert_approx_equal(res, 0.0230141, significant=6)
-    res = fisher_exact([[5, 1], [10, 10]])[1]
-    assert_approx_equal(res, 0.1973244, significant=6)
-    res = fisher_exact([[5, 15], [20, 20]])[1]
-    assert_approx_equal(res, 0.0958044, significant=6)
-    res = fisher_exact([[5, 16], [20, 25]])[1]
-    assert_approx_equal(res, 0.1725862, significant=6)
-    res = fisher_exact([[10, 5], [10, 1]])[1]
-    assert_approx_equal(res, 0.1973244, significant=6)
-    res = fisher_exact([[5, 0], [1, 4]])[1]
-    assert_approx_equal(res, 0.04761904, significant=6)
-    res = fisher_exact([[0, 1], [3, 2]])[1]
-    assert_approx_equal(res, 1.0)
-    res = fisher_exact([[0, 2], [6, 4]])[1]
-    assert_approx_equal(res, 0.4545454545)
-    res = fisher_exact([[2, 7], [8, 2]])
-    assert_approx_equal(res[1], 0.0230141, significant=6)
-    assert_approx_equal(res[0], 4.0 / 56)
+        res = fisher_exact([[14500, 20000], [30000, 40000]])[1]
+        assert_approx_equal(res, 0.01106, significant=4)
+        res = fisher_exact([[100, 2], [1000, 5]])[1]
+        assert_approx_equal(res, 0.1301, significant=4)
+        res = fisher_exact([[2, 7], [8, 2]])[1]
+        assert_approx_equal(res, 0.0230141, significant=6)
+        res = fisher_exact([[5, 1], [10, 10]])[1]
+        assert_approx_equal(res, 0.1973244, significant=6)
+        res = fisher_exact([[5, 15], [20, 20]])[1]
+        assert_approx_equal(res, 0.0958044, significant=6)
+        res = fisher_exact([[5, 16], [20, 25]])[1]
+        assert_approx_equal(res, 0.1725862, significant=6)
+        res = fisher_exact([[10, 5], [10, 1]])[1]
+        assert_approx_equal(res, 0.1973244, significant=6)
+        res = fisher_exact([[5, 0], [1, 4]])[1]
+        assert_approx_equal(res, 0.04761904, significant=6)
+        res = fisher_exact([[0, 1], [3, 2]])[1]
+        assert_approx_equal(res, 1.0)
+        res = fisher_exact([[0, 2], [6, 4]])[1]
+        assert_approx_equal(res, 0.4545454545)
+        res = fisher_exact([[2, 7], [8, 2]])
+        assert_approx_equal(res[1], 0.0230141, significant=6)
+        assert_approx_equal(res[0], 4.0 / 56)
 
-    # High tolerance due to survival function inaccuracy.
-    res = fisher_exact([[19000, 80000], [20000, 90000]])[1]
-    assert_approx_equal(res, 3.319e-9, significant=1)
+    def test_precise(self):
+        fisher_exact = stats.fisher_exact
 
-    # results from R
-    #
-    # R defines oddsratio differently (see Notes section of fisher_exact
-    # docstring), so those will not match.  We leave them in anyway, in
-    # case they will be useful later on. We test only the p-value.
-    tablist = [
-        ([[100, 2], [1000, 5]], (2.505583993422285e-001,  1.300759363430016e-001)),
-        ([[2, 7], [8, 2]], (8.586235135736206e-002,  2.301413756522114e-002)),
-        ([[5, 1], [10, 10]], (4.725646047336584e+000,  1.973244147157190e-001)),
-        ([[5, 15], [20, 20]], (3.394396617440852e-001,  9.580440012477637e-002)),
-        ([[5, 16], [20, 25]], (3.960558326183334e-001,  1.725864953812994e-001)),
-        ([[10, 5], [10, 1]], (2.116112781158483e-001,  1.973244147157190e-001)),
-        ([[10, 5], [10, 0]], (0.000000000000000e+000,  6.126482213438734e-002)),
-        ([[5, 0], [1, 4]], (np.inf,  4.761904761904762e-002)),
-        ([[0, 5], [1, 4]], (0.000000000000000e+000,  1.000000000000000e+000)),
-        ([[5, 1], [0, 4]], (np.inf,  4.761904761904758e-002)),
-        ([[0, 1], [3, 2]], (0.000000000000000e+000,  1.000000000000000e+000))
-        ]
-    for table, res_r in tablist:
-        res = fisher_exact(np.asarray(table))
-        np.testing.assert_almost_equal(res[1], res_r[1], decimal=11,
-                                       verbose=True)
+        # results from R
+        #
+        # R defines oddsratio differently (see Notes section of fisher_exact
+        # docstring), so those will not match.  We leave them in anyway, in
+        # case they will be useful later on. We test only the p-value.
+        tablist = [
+            ([[100, 2], [1000, 5]], (2.505583993422285e-001,  1.300759363430016e-001)),
+            ([[2, 7], [8, 2]], (8.586235135736206e-002,  2.301413756522114e-002)),
+            ([[5, 1], [10, 10]], (4.725646047336584e+000,  1.973244147157190e-001)),
+            ([[5, 15], [20, 20]], (3.394396617440852e-001,  9.580440012477637e-002)),
+            ([[5, 16], [20, 25]], (3.960558326183334e-001,  1.725864953812994e-001)),
+            ([[10, 5], [10, 1]], (2.116112781158483e-001,  1.973244147157190e-001)),
+            ([[10, 5], [10, 0]], (0.000000000000000e+000,  6.126482213438734e-002)),
+            ([[5, 0], [1, 4]], (np.inf,  4.761904761904762e-002)),
+            ([[0, 5], [1, 4]], (0.000000000000000e+000,  1.000000000000000e+000)),
+            ([[5, 1], [0, 4]], (np.inf,  4.761904761904758e-002)),
+            ([[0, 1], [3, 2]], (0.000000000000000e+000,  1.000000000000000e+000))
+            ]
+        for table, res_r in tablist:
+            res = stats.fisher_exact(np.asarray(table))
+            np.testing.assert_almost_equal(res[1], res_r[1], decimal=11,
+                                           verbose=True)
 
-    # test we raise an error for wrong shape of input.
-    assert_raises(ValueError, fisher_exact, np.arange(6).reshape(2, 3))
+    @dec.slow
+    def test_large_numbers(self):
+        # Test with some large numbers. Regression test for #1401
+        pvals = [5.56e-11, 2.666e-11, 1.363e-11]  # from R
+        for pval, num in zip(pvals, [75, 76, 77]):
+            res = stats.fisher_exact([[17704, 496], [1065, num]])[1]
+            assert_approx_equal(res, pval, significant=4)
+
+        res = stats.fisher_exact([[18000, 80000], [20000, 90000]])[1]
+        assert_approx_equal(res, 0.2751, significant=4)
+
+    def test_raises(self):
+        # test we raise an error for wrong shape of input.
+        assert_raises(ValueError, stats.fisher_exact,
+                      np.arange(6).reshape(2, 3))
+
+    def test_row_or_col_zero(self):
+        tables = ([[0, 0], [5, 10]],
+                  [[5, 10], [0, 0]],
+                  [[0, 5], [0, 10]],
+                  [[5, 0], [10, 0]])
+        for table in tables:
+            oddsratio, pval = stats.fisher_exact(table)
+            assert_equal(pval, 1.0)
+            assert_equal(oddsratio, np.nan)
+
+    def test_less_greater(self):
+        tables = (
+            # Some tables to compare with R:
+            [[2, 7], [8, 2]],
+            [[200, 7], [8, 300]],
+            [[28, 21], [6, 1957]],
+            [[190, 800], [200, 900]],
+            # Some tables with simple exact values
+            # (includes regression test for ticket #1568):
+            [[0, 2], [3, 0]],
+            [[1, 1], [2, 1]],
+            [[2, 0], [1, 2]],
+            [[0, 1], [2, 3]],
+            [[1, 0], [1, 4]],
+            )
+        pvals = (
+            # from R:
+            [0.018521725952066501, 0.9990149169715733],
+            [1.0, 2.0056578803889148e-122],
+            [1.0, 5.7284374608319831e-44],
+            [0.7416227, 0.2959826],
+            # Exact:
+            [0.1, 1.0],
+            [0.7, 0.9],
+            [1.0, 0.3],
+            [2./3, 1.0],
+            [1.0, 1./3],
+            )
+        for table, pval in zip(tables, pvals):
+            res = []
+            res.append(stats.fisher_exact(table, alternative="less")[1])
+            res.append(stats.fisher_exact(table, alternative="greater")[1])
+            assert_allclose(res, pval, atol=0, rtol=1e-7)
 
 
 class TestCorrSpearmanr(TestCase):
@@ -559,8 +612,8 @@ def test_kendalltau():
     # with some ties
     x1 = [12, 2, 1, 12, 2]
     x2 = [1, 4, 7, 1, 0]
-    res = (-0.47140452079103173, 0.24821309157521476)
-    expected = stats.kendalltau(x1, x2)
+    expected = (-0.47140452079103173, 0.24821309157521476)
+    res = stats.kendalltau(x1, x2)
     assert_approx_equal(res[0], expected[0])
     assert_approx_equal(res[1], expected[1])
 
@@ -975,9 +1028,7 @@ class TestMode(TestCase):
 
 
 class TestVariability(TestCase):
-    """  Comparison numbers are found using R v.1.5.1
-         note that length(testcase) = 4
-    """
+
     testcase = [1,2,3,4]
 
     def test_signaltonoise(self):
@@ -1008,6 +1059,45 @@ class TestVariability(TestCase):
         desired = ([-1.3416407864999, -0.44721359549996 , 0.44721359549996 , 1.3416407864999])
         assert_array_almost_equal(desired,y,decimal=12)
 
+    def test_zmap_axis(self):
+        """Test use of 'axis' keyword in zmap."""        
+        x = np.array([[0.0, 0.0, 1.0, 1.0],
+                      [1.0, 1.0, 1.0, 2.0],
+                      [2.0, 0.0, 2.0, 0.0]])
+
+        t1 = 1.0/np.sqrt(2.0/3)
+        t2 = np.sqrt(3.)/3
+        t3 = np.sqrt(2.)
+
+        z0 = stats.zmap(x, x, axis=0)
+        z1 = stats.zmap(x, x, axis=1)
+
+        z0_expected = [[-t1, -t3/2, -t3/2, 0.0],
+                       [0.0,  t3,   -t3/2,  t1],
+                       [t1,  -t3/2,  t3,   -t1]]
+        z1_expected = [[-1.0, -1.0, 1.0, 1.0],
+                       [-t2, -t2, -t2, np.sqrt(3.)],
+                       [1.0, -1.0, 1.0, -1.0]]
+
+        assert_array_almost_equal(z0, z0_expected)
+        assert_array_almost_equal(z1, z1_expected)        
+
+    def test_zmap_ddof(self):
+        """Test use of 'ddof' keyword in zmap."""
+        x = np.array([[0.0, 0.0, 1.0, 1.0],
+                      [0.0, 1.0, 2.0, 3.0]])
+
+        t1 = 1.0/np.sqrt(2.0/3)
+        t2 = np.sqrt(3.)/3
+        t3 = np.sqrt(2.)
+
+        z = stats.zmap(x, x, axis=1, ddof=1)
+
+        z0_expected = np.array([-0.5, -0.5, 0.5, 0.5])/(1.0/np.sqrt(3))
+        z1_expected = np.array([-1.5, -0.5, 0.5, 1.5])/(np.sqrt(5./3))
+        assert_array_almost_equal(z[0], z0_expected)
+        assert_array_almost_equal(z[1], z1_expected)
+
     def test_zscore(self):
         """
         not in R, so tested by using
@@ -1016,6 +1106,46 @@ class TestVariability(TestCase):
         y = stats.zscore(self.testcase)
         desired = ([-1.3416407864999, -0.44721359549996 , 0.44721359549996 , 1.3416407864999])
         assert_array_almost_equal(desired,y,decimal=12)
+
+    def test_zscore_axis(self):
+        """Test use of 'axis' keyword in zscore."""
+        x = np.array([[0.0, 0.0, 1.0, 1.0],
+                      [1.0, 1.0, 1.0, 2.0],
+                      [2.0, 0.0, 2.0, 0.0]])
+
+        t1 = 1.0/np.sqrt(2.0/3)
+        t2 = np.sqrt(3.)/3
+        t3 = np.sqrt(2.)
+
+        z0 = stats.zscore(x, axis=0)
+        z1 = stats.zscore(x, axis=1)
+
+        z0_expected = [[-t1, -t3/2, -t3/2, 0.0],
+                       [0.0,  t3,   -t3/2,  t1],
+                       [t1,  -t3/2,  t3,   -t1]]
+        z1_expected = [[-1.0, -1.0, 1.0, 1.0],
+                       [-t2, -t2, -t2, np.sqrt(3.)],
+                       [1.0, -1.0, 1.0, -1.0]]
+
+        assert_array_almost_equal(z0, z0_expected)
+        assert_array_almost_equal(z1, z1_expected)
+
+    def test_zscore_ddof(self):
+        """Test use of 'ddof' keyword in zscore."""
+        x = np.array([[0.0, 0.0, 1.0, 1.0],
+                      [0.0, 1.0, 2.0, 3.0]])
+
+        t1 = 1.0/np.sqrt(2.0/3)
+        t2 = np.sqrt(3.)/3
+        t3 = np.sqrt(2.)
+
+        z = stats.zscore(x, axis=1, ddof=1)
+
+        z0_expected = np.array([-0.5, -0.5, 0.5, 0.5])/(1.0/np.sqrt(3))
+        z1_expected = np.array([-1.5, -0.5, 0.5, 1.5])/(np.sqrt(5./3))
+        assert_array_almost_equal(z[0], z0_expected)
+        assert_array_almost_equal(z[1], z1_expected)
+
 
 class TestMoments(TestCase):
     """
@@ -1488,6 +1618,21 @@ def test_normalitytests():
     yield assert_array_almost_equal, stats.skewtest(x), (st_skew, pv_skew)
     yield assert_array_almost_equal, stats.kurtosistest(x), (st_kurt, pv_kurt)
 
+def test_skewtest_too_few_samples():
+    """Regression test for ticket #1492.
+
+    skewtest requires at least 8 samples; 7 should raise a ValueError.
+    """
+    x = np.arange(7.0)
+    assert_raises(ValueError, stats.skewtest, x)
+
+def test_kurtosistest_too_few_samples():
+    """Regression test for ticket #1425.
+
+    kurtosistest requires at least 5 samples; 4 should raise a ValueError.
+    """
+    x = np.arange(4.0)
+    assert_raises(ValueError, stats.kurtosistest, x)
 
 def mannwhitneyu():
     x = np.array([ 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
@@ -1822,6 +1967,66 @@ class TestFOneWay(TestCase):
         # Despite being a floating point calculation, this data should
         # result in F being exactly 2.0.
         assert_equal(F, 2.0)
+
+
+class TestKruskal(TestCase):
+
+    def test_simple(self):
+        """A really simple case for stats.kruskal"""
+        x = [1]
+        y = [2]
+        h, p = stats.kruskal(x, y)
+        assert_equal(h, 1.0)
+        assert_approx_equal(p, stats.chisqprob(h, 1))
+        h, p = stats.kruskal(np.array(x), np.array(y))
+        assert_equal(h, 1.0)
+        assert_approx_equal(p, stats.chisqprob(h, 1))
+
+    def test_basic(self):
+        """A basic test, with no ties."""
+        x = [1, 3, 5, 7, 9]
+        y = [2, 4, 6, 8, 10]
+        h, p = stats.kruskal(x, y)
+        assert_approx_equal(h, 3./11, significant=10)
+        assert_approx_equal(p, stats.chisqprob(3./11, 1))
+        h, p = stats.kruskal(np.array(x), np.array(y))
+        assert_approx_equal(h, 3./11, significant=10)
+        assert_approx_equal(p, stats.chisqprob(3./11, 1))
+
+    def test_simple_tie(self):
+        """A simple case with a tie."""
+        x = [1]
+        y = [1, 2]
+        h_uncorr = 1.5**2 + 2*2.25**2 - 12
+        corr = 0.75
+        expected = h_uncorr / corr   # 0.5
+        h, p = stats.kruskal(x, y)
+        # Since the expression is simple and the exact answer is 0.5, it
+        # should be safe to use assert_equal().
+        assert_equal(h, expected)
+
+    def test_another_tie(self):
+        """Another test of stats.kruskal with a tie."""
+        x = [1, 1, 1, 2]
+        y = [2, 2, 2, 2]
+        h_uncorr = (12. / 8. / 9.) * 4 * (3**2 + 6**2) - 3 * 9
+        corr = 1 - float(3**3 - 3 + 5**3 - 5) / (8**3 - 8)
+        expected = h_uncorr / corr
+        h, p = stats.kruskal(x, y)
+        assert_approx_equal(h, expected)
+
+    def test_three_groups(self):
+        """A test of stats.kruskal with three groups, with ties."""
+        x = [1, 1, 1]
+        y = [2, 2, 2]
+        z = [2, 2]
+        h_uncorr = (12. / 8. / 9.) * (3*2**2 + 3*6**2 + 2*6**2) - 3 * 9  # 5.0
+        corr = 1 - float(3**3 - 3 + 5**3 - 5) / (8**3 - 8)
+        expected = h_uncorr / corr  # 7.0
+        h, p = stats.kruskal(x, y, z)
+        assert_approx_equal(h, expected)
+        assert_approx_equal(p, stats.chisqprob(h, 2))
+
 
 if __name__ == "__main__":
     run_module_suite()

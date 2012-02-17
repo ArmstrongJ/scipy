@@ -124,3 +124,26 @@ def test_read_example_data():
         f = netcdf_file(fname, 'r')
         f = netcdf_file(fname, 'r', mmap=False)
 
+def test_itemset_no_segfault_on_readonly():
+    # Regression test for ticket #1202.
+    # Open the test file in read-only mode.
+    filename = pjoin(TEST_DATA_PATH, 'example_1.nc')
+    f = netcdf_file(filename, 'r')
+    time_var = f.variables['time']
+    # time_var.assignValue(42) should raise a RuntimeError--not seg. fault!
+    assert_raises(RuntimeError, time_var.assignValue, 42)
+
+def test_write_invalid_dtype():
+    dtypes = ['int64', 'uint64']
+    if np.dtype('int').itemsize == 8:   # 64-bit machines
+        dtypes.append('int')
+    if np.dtype('uint').itemsize == 8:   # 64-bit machines
+        dtypes.append('uint')
+
+    f = netcdf_file(BytesIO(), 'w')
+    f.createDimension('time', N_EG_ELS)
+    for dt in dtypes:
+        yield assert_raises, ValueError, \
+            f.createVariable, 'time', dt, ('time',)
+    f.close()
+

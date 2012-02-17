@@ -375,7 +375,6 @@ def curve_fit(f, xdata, ydata, p0=None, sigma=None, **kw):
         This vector, if given, will be used as weights in the
         least-squares problem.
 
-
     Returns
     -------
     popt : array
@@ -385,11 +384,14 @@ def curve_fit(f, xdata, ydata, p0=None, sigma=None, **kw):
         The estimated covariance of popt.  The diagonals provide the variance
         of the parameter estimate.
 
+    See Also
+    --------
+    leastsq
+
     Notes
     -----
-    The algorithm uses the Levenburg-Marquardt algorithm:
-    scipy.optimize.leastsq. Additional keyword arguments are passed directly
-    to that algorithm.
+    The algorithm uses the Levenburg-Marquardt algorithm through `leastsq`.
+    Additional keyword arguments are passed directly to that algorithm.
 
     Examples
     --------
@@ -405,16 +407,20 @@ def curve_fit(f, xdata, ydata, p0=None, sigma=None, **kw):
     >>> popt, pcov = curve_fit(func, x, yn)
 
     """
-    if p0 is None or isscalar(p0):
+    if p0 is None:
         # determine number of parameters by inspecting the function
         import inspect
         args, varargs, varkw, defaults = inspect.getargspec(f)
         if len(args) < 2:
             msg = "Unable to determine number of fit parameters."
             raise ValueError(msg)
-        if p0 is None:
-            p0 = 1.0
-        p0 = [p0]*(len(args)-1)
+        if 'self' in args:
+            p0 = [1.0] * (len(args)-2)
+        else:
+            p0 = [1.0] * (len(args)-1)
+
+    if isscalar(p0):
+        p0 = array([p0])
 
     args = (xdata, ydata, f)
     if sigma is None:
@@ -423,6 +429,8 @@ def curve_fit(f, xdata, ydata, p0=None, sigma=None, **kw):
         func = _weighted_general_function
         args += (1.0/asarray(sigma),)
 
+    # Remove full_output from kw, otherwise we're passing it in twice.
+    return_full = kw.pop('full_output', False)
     res = leastsq(func, p0, args=args, full_output=1, **kw)
     (popt, pcov, infodict, errmsg, ier) = res
 
@@ -436,7 +444,10 @@ def curve_fit(f, xdata, ydata, p0=None, sigma=None, **kw):
     else:
         pcov = inf
 
-    return popt, pcov
+    if return_full:
+        return popt, pcov, infodict, errmsg, ier
+    else:
+        return popt, pcov
 
 def check_gradient(fcn, Dfcn, x0, args=(), col_deriv=0):
     """Perform a simple check on the gradient for correctness.

@@ -1,6 +1,6 @@
 import warnings
 
-from scipy.constants import constants, codata, find
+from scipy.constants import constants, codata, find, value
 from numpy.testing import assert_equal, assert_, run_module_suite, \
                           assert_almost_equal
 
@@ -21,8 +21,8 @@ def test_find():
                                 'natural unit of mass',
                                 'natural unit of energy',
                                 'natural unit of energy in MeV',
-                                'natural unit of momentum',
-                                'natural unit of momentum in MeV/c',
+                                'natural unit of mom.um',
+                                'natural unit of mom.um in MeV/c',
                                 'natural unit of length',
                                 'natural unit of time']))
 
@@ -46,6 +46,12 @@ def test_find_single():
 def test_2002_vs_2006():
     assert_almost_equal(codata.value('magn. flux quantum'),
                         codata.value('mag. flux quantum'))
+
+def test_exact_values():
+    """Check that updating stored values with exact ones worked."""
+    for key in codata.exact_values:
+        assert_((codata.exact_values[key][0] - value(key)) / value(key) == 0)
+
 
 if __name__ == "__main__":
     run_module_suite()

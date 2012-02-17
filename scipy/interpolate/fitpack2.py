@@ -179,13 +179,10 @@ class UnivariateSpline(object):
             k,m = data[5],len(data[0])
             nest = m+k+1 # this is the maximum bound for nest
         else:
-            assert n<=nest,"nest can only be increased"
-        t,c,fpint,nrdata = data[8].copy(),data[9].copy(),\
-                           data[11].copy(),data[12].copy()
-        t.resize(nest)
-        c.resize(nest)
-        fpint.resize(nest)
-        nrdata.resize(nest)
+            if not n <= nest:
+                raise ValueError("`nest` can only be increased")
+        t, c, fpint, nrdata = [np.resize(data[n], nest) for n in [8,9,11,12]]
+
         args = data[:8] + (t,c,n,fpint,nrdata,data[13])
         data = dfitpack.fpcurf1(*args)
         return data
@@ -253,7 +250,8 @@ class UnivariateSpline(object):
     def derivatives(self, x):
         """ Return all derivatives of the spline at the point x."""
         d,ier = dfitpack.spalde(*(self._eval_args+(x,)))
-        assert ier==0,`ier`
+        if not ier == 0:
+            raise ValueError("Error code returned by spalde: %s" % ier)
         return d
 
     def roots(self):
@@ -264,7 +262,8 @@ class UnivariateSpline(object):
         k = self._data[5]
         if k==3:
             z,m,ier = dfitpack.sproot(*self._eval_args[:2])
-            assert ier==0,`ier`
+            if not ier == 0:
+                raise ValueError("Error code returned by spalde: %s" % ier)
             return z[:m]
         raise NotImplementedError('finding roots unsupported for '
                                     'non-cubic splines')
@@ -518,7 +517,8 @@ class BivariateSpline(object):
             tx,ty,c = self.tck[:3]
             kx,ky = self.degrees
             z,ier = dfitpack.bispev(tx,ty,c,kx,ky,x,y)
-            assert ier==0,'Invalid input: ier='+`ier`
+            if not ier == 0:
+                raise ValueError("Error code returned by bispev: %s" % ier)
             return z
         raise NotImplementedError('unknown method mth=%s' % mth)
 
@@ -529,7 +529,8 @@ class BivariateSpline(object):
         tx,ty,c = self.tck[:3]
         kx,ky = self.degrees
         zi,ier = dfitpack.bispeu(tx,ty,c,kx,ky,xi,yi)
-        assert ier==0, 'Invalid input: ier='+`ier`
+        if not ier == 0:
+            raise ValueError("Error code returned by bispeu: %s" % ier)
         return zi
 
     def integral(self, xa, xb, ya, yb):
